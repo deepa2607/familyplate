@@ -2,7 +2,8 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { Link } from "react-router-dom";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 
 const C = {
   bg:"#0B0E1A", panel:"#111827", card:"#141B2D", border:"rgba(255,255,255,0.06)",

@@ -5,7 +5,8 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 
-const API         = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 const STORAGE_KEY = "homehub_notifications";
 const MAX_NOTIFS  = 50;
 

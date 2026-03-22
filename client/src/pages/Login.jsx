@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
 
-const API = "http://localhost:5000/api";
 
 const FOOD_EMOJIS = ["🍕","🍔","🍜","🍛","🥘","🍲","🥗","🍣","🧆","🫕","🍱","🥙","🌮","🍝","🥩","🧁","🍰","🍩","☕","🫖","🥞","🍳","🍡","🍧","🥮","🍿"];
 const PARTICLES = Array.from({ length: 28 }, (_, i) => ({

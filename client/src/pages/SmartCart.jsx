@@ -3,7 +3,8 @@ import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useToast } from "../components/Toast";
 
-const API          = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 const RAZORPAY_KEY = "rzp_test_STtEjhkKyDQlmf";
 const UPI_ID       = "homehub@okaxis";
 const INR          = n => `₹${(Number(n)||0).toLocaleString("en-IN")}`;

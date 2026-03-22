@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 
 /* ─── SVG Line Chart ───────────────────────────────────────────────────────── */
 function LineChart({ data, color="#ff6b2b", height=140, label="" }) {

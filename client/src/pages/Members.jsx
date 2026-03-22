@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import { useToast } from "../components/Toast";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 const SLIDES = [
   "https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=80",
   "https://images.unsplash.com/photo-1567337710282-00832b415979?w=1200&q=80",

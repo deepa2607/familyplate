@@ -1,7 +1,8 @@
 import { useState, useCallback, useMemo } from "react";
 import axios from "axios";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 
 const PLANS = {
   "Weight Loss":    { color:"#2d7a4f", img:"https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=600&q=80", calories:"1200-1500", protein:"80-100g", carbs:"100-120g", fat:"35-45g", desc:"Low calorie, high protein, fibre-rich. Designed for sustainable 0.5kg/week loss.", foods:["Brown rice","Moong dal","Green vegetables","Curd","Egg whites","Fruits","Oats"], avoid:["White rice","Fried foods","Sugary drinks","Processed snacks","Maida"], tips:["Start with warm water every morning","Include protein in every meal","Avoid refined carbs completely","Sleep 7-8 hours for best results"] },

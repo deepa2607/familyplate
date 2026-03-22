@@ -6,7 +6,8 @@ import { useLowStockNotification, useExpiryNotification } from "../components/No
 const GROCERY_KEY = "groceryList";
 const CART_KEY    = "homehub_smartcart_v2";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 
 const CAT_META = {
   Vegetables:{ icon:"🥦", color:"#2d7a4f", img:"https://images.unsplash.com/photo-1590779033100-9f17a209f87d?w=500&q=80" },

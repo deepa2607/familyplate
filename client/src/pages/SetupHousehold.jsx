@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useToast } from "../components/Toast";
 
-const API = "http://localhost:5000/api";
+const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
+
 
 const DIET_OPTIONS = [
   { value:"veg",     label:"🥦 Vegetarian",    desc:"No meat or fish",    img:"https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&q=80" },
