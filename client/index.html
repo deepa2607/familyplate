@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HomeHub — Smart Home Kitchen</title>
+    <meta name="description" content="Smart household food & expense management" />
+    <meta name="application-name" content="HomeHub" />
+    <meta name="apple-mobile-web-app-title" content="HomeHub" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="theme-color" content="#ff6b2b" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+      :root {
+        --font-display: 'Playfair Display', Georgia, serif;
+        --font-body: 'Plus Jakarta Sans', sans-serif;
+        --cream: #fdf8f3;
+        --orange: #ff6b2b;
+        --green: #2d7a4f;
+        --text-dark: #1a1410;
+        --text-mid: #5c4a35;
+        --glass: rgba(255,255,255,0.75);
+        --border: rgba(139,94,60,0.1);
+        --shadow-md: 0 8px 32px rgba(139,94,60,0.14);
+        --shadow-lg: 0 20px 60px rgba(139,94,60,0.2);
+      }
+      html { font-size: 16px; scroll-behavior: smooth; }
+      body {
+        font-family: var(--font-body);
+        background: var(--cream);
+        color: var(--text-dark);
+        -webkit-font-smoothing: antialiased;
+        overflow-x: hidden;
+      }
+      ::-webkit-scrollbar { width: 5px; height: 5px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: rgba(139,94,60,0.2); border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background: rgba(139,94,60,0.4); }
+      input, button, select, textarea { font-family: var(--font-body); }
+      a { text-decoration: none; color: inherit; }
+      ::selection { background: rgba(255,107,43,0.18); color: var(--text-dark); }
+      @keyframes fadeInUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+      #root { animation: fadeInUp 0.4s ease both; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
