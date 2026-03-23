@@ -1,8 +1,7 @@
 // routes/groceryRoutes.js
 const express     = require("express");
 const router      = express.Router();
-const GroceryList = require("../models/GroceryList");
-const User        = require("../models/User");
+const GroceryList = require("../models/GroceryList"); // ✅ make sure this model file exists
 const auth        = require("../middleware/authMiddleware");
 
 // ══════════════════════════════════════
@@ -15,7 +14,6 @@ router.get("/:householdId", auth, async (req, res) => {
       isActive:    true,
     }).populate("items.addedBy", "name");
 
-    // Create one if none exists
     if (!list) {
       list = await GroceryList.create({
         householdId: req.params.householdId,
@@ -68,7 +66,7 @@ router.post("/:householdId/item", auth, async (req, res) => {
 });
 
 // ══════════════════════════════════════
-//  PATCH /api/grocery/:householdId/item/:itemId/check  — Check/uncheck item
+//  PATCH /api/grocery/:householdId/item/:itemId/check
 // ══════════════════════════════════════
 router.patch("/:householdId/item/:itemId/check", auth, async (req, res) => {
   try {
@@ -87,7 +85,7 @@ router.patch("/:householdId/item/:itemId/check", auth, async (req, res) => {
 });
 
 // ══════════════════════════════════════
-//  DELETE /api/grocery/:householdId/item/:itemId  — Remove item
+//  DELETE /api/grocery/:householdId/item/:itemId
 // ══════════════════════════════════════
 router.delete("/:householdId/item/:itemId", auth, async (req, res) => {
   try {
@@ -103,7 +101,7 @@ router.delete("/:householdId/item/:itemId", auth, async (req, res) => {
 });
 
 // ══════════════════════════════════════
-//  DELETE /api/grocery/:householdId/checked  — Clear checked items
+//  DELETE /api/grocery/:householdId/checked
 // ══════════════════════════════════════
 router.delete("/:householdId/checked", auth, async (req, res) => {
   try {
@@ -119,7 +117,7 @@ router.delete("/:householdId/checked", auth, async (req, res) => {
 });
 
 // ══════════════════════════════════════
-//  POST /api/grocery/:householdId/clear  — Clear entire list
+//  POST /api/grocery/:householdId/clear
 // ══════════════════════════════════════
 router.post("/:householdId/clear", auth, async (req, res) => {
   try {
@@ -135,7 +133,7 @@ router.post("/:householdId/clear", auth, async (req, res) => {
 });
 
 // ══════════════════════════════════════
-//  GET /api/grocery/suggestions  — Quick-add suggestions
+//  GET /api/grocery/suggestions/all
 // ══════════════════════════════════════
 router.get("/suggestions/all", auth, (req, res) => {
   res.json([

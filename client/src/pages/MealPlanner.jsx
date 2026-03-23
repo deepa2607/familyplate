@@ -1,10 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../api/axios"; // ✅ correct import — no API const needed
 import { useToast } from "../components/Toast";
-
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
-
 
 const DAYS  = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
 const MEALS = ["Breakfast","Lunch","Dinner","Snack"];
@@ -67,7 +64,6 @@ const MEALS_BY_DIET = {
   },
 };
 
-// Fallback: same as veg for other diet types
 const DIET_FALLBACK = MEALS_BY_DIET.veg;
 function getMealSuggestions(diet) { return MEALS_BY_DIET[diet] || DIET_FALLBACK; }
 
@@ -82,14 +78,14 @@ const DIET_OPTIONS = [
   {v:"lowcal",     l:"⚖️ Low Cal"},
 ];
 
-const DAY_COLORS = ["#ff6b2b","#d32f2f","#7c3aed","#1565c0","#2d7a4f","#e67e22","#5c4a35"];
+const DAY_COLORS     = ["#ff6b2b","#d32f2f","#7c3aed","#1565c0","#2d7a4f","#e67e22","#5c4a35"];
 const MEMBER_AVATARS = ["👩","👨","👧","👦","👵","👴","🧑","👩‍🍳","👨‍🍳","🧒"];
 
 function loadPlan(key) { try { return JSON.parse(localStorage.getItem(key))||{}; } catch { return {}; } }
 function savePlan(key, p) { try { localStorage.setItem(key, JSON.stringify(p)); } catch {} }
 
 export default function MealPlanner() {
-  const toast = useToast();
+  const toast    = useToast();
   const navigate = useNavigate();
 
   const [household,      setHousehold]      = useState(null);
@@ -100,8 +96,7 @@ export default function MealPlanner() {
   const [activeMeal,     setActiveMeal]     = useState(null);
   const [dietMode,       setDietMode]       = useState("veg");
   const [view,           setView]           = useState("week");
-  // Recipe suggestion from Recipes page
-  const [suggestion, setSuggestion] = useState(null);
+  const [suggestion,     setSuggestion]     = useState(null);
   const [suggestionTarget, setSuggestionTarget] = useState({day:"Monday", meal:"Lunch"});
 
   const currentKeyRef = useRef("homehub_mealplan_v2");
@@ -120,31 +115,31 @@ export default function MealPlanner() {
       }
     } catch {}
 
-    axios.get(`${API}/household/myhousehold`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
-    }).then(r => {
-      const hh = r.data;
-      setHousehold(hh);
-      const hhMembers = hh?.members || [];
-      setMembers(hhMembers);
-      if (hhMembers.length > 0) {
-        const first = hhMembers[0];
-        setSelectedMember(first);
-        const k = getPlanKey(hh._id, first._id || first.name);
-        currentKeyRef.current = k;
-        const saved = loadPlan(k);
-        if (Object.keys(saved).length > 0) setPlan(saved);
-      } else if (hh?._id) {
-        const k = `homehub_mealplan_${hh._id}`;
-        currentKeyRef.current = k;
-        const saved = loadPlan(k);
-        if (Object.keys(saved).length > 0) setPlan(saved);
-      }
-      if (hh?.foodPreference) {
-        const m = {veg:"veg",vegetarian:"veg","non-veg":"nonveg",nonveg:"nonveg",vegan:"vegan",jain:"jain"};
-        setDietMode(m[hh.foodPreference?.toLowerCase()]||"veg");
-      }
-    }).catch(()=>{});
+    API.get("/household/myhousehold")
+      .then(r => {
+        const hh = r.data;
+        setHousehold(hh);
+        const hhMembers = hh?.members || [];
+        setMembers(hhMembers);
+        if (hhMembers.length > 0) {
+          const first = hhMembers[0];
+          setSelectedMember(first);
+          const k = getPlanKey(hh._id, first._id || first.name);
+          currentKeyRef.current = k;
+          const saved = loadPlan(k);
+          if (Object.keys(saved).length > 0) setPlan(saved);
+        } else if (hh?._id) {
+          const k = `homehub_mealplan_${hh._id}`;
+          currentKeyRef.current = k;
+          const saved = loadPlan(k);
+          if (Object.keys(saved).length > 0) setPlan(saved);
+        }
+        if (hh?.foodPreference) {
+          const m = {veg:"veg",vegetarian:"veg","non-veg":"nonveg",nonveg:"nonveg",vegan:"vegan",jain:"jain"};
+          setDietMode(m[hh.foodPreference?.toLowerCase()] || "veg");
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const handleSelectMember = (member) => {
@@ -172,25 +167,24 @@ export default function MealPlanner() {
   };
 
   const clearAll = () => {
-    if (!window.confirm(`Clear entire week plan?`)) return;
+    if (!window.confirm("Clear entire week plan?")) return;
     setPlan({});
     savePlan(currentKeyRef.current, {});
     toast("Meal plan cleared", "info");
   };
 
-  // Accept the recipe suggestion
   const acceptSuggestion = () => {
     if (!suggestion) return;
     const mealTypeMap = {breakfast:"Breakfast",lunch:"Lunch",dinner:"Dinner",snack:"Snack"};
-    const targetMeal = mealTypeMap[suggestion.mealType?.toLowerCase()] || suggestionTarget.meal;
-    const item = { name:suggestion.name, img:suggestion.img, cal:suggestion.cal||0, tag:suggestion.tag||"Recipe" };
+    const targetMeal  = mealTypeMap[suggestion.mealType?.toLowerCase()] || suggestionTarget.meal;
+    const item        = { name:suggestion.name, img:suggestion.img, cal:suggestion.cal||0, tag:suggestion.tag||"Recipe" };
     setMeal(suggestionTarget.day, targetMeal, item);
     setSuggestion(null);
     toast(`${suggestion.name} added to ${suggestionTarget.day} ${targetMeal}! 📅`, "success");
   };
 
-  const totalCals = (day) => MEALS.reduce((s,m)=>s+(plan[`${day}_${m}`]?.cal||0),0);
-  const weekCals     = DAYS.reduce((s,d)=>s+totalCals(d),0);
+  const totalCals    = (day) => MEALS.reduce((s,m)=>s+(plan[`${day}_${m}`]?.cal||0), 0);
+  const weekCals     = DAYS.reduce((s,d)=>s+totalCals(d), 0);
   const plannedCount = Object.keys(plan).length;
 
   return (
@@ -204,9 +198,7 @@ export default function MealPlanner() {
               <img src={suggestion.img} alt={suggestion.name} style={{width:"100%",height:"100%",objectFit:"cover"}}/>
             </div>
             <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:14,color:"#1a1410",marginBottom:2}}>
-                📅 Add "{suggestion.name}" to your meal plan?
-              </div>
+              <div style={{fontWeight:800,fontSize:14,color:"#1a1410",marginBottom:2}}>📅 Add "{suggestion.name}" to your meal plan?</div>
               <div style={{fontSize:12,color:"#9c8672"}}>From Recipes page · {suggestion.cal>0?`🔥 ${suggestion.cal} cal · `:""}{suggestion.tag||"Recipe"}</div>
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
@@ -218,12 +210,8 @@ export default function MealPlanner() {
                 style={{padding:"6px 10px",borderRadius:8,border:"1px solid rgba(139,94,60,0.2)",background:"white",fontSize:12,fontWeight:600,color:"#1a1410",cursor:"pointer"}}>
                 {MEALS.map(m=><option key={m} value={m}>{m}</option>)}
               </select>
-              <button onClick={acceptSuggestion} style={{padding:"7px 14px",background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                ✅ Add to Plan
-              </button>
-              <button onClick={()=>setSuggestion(null)} style={{padding:"7px 12px",background:"rgba(139,94,60,0.08)",color:"#9c8672",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                Dismiss
-              </button>
+              <button onClick={acceptSuggestion} style={{padding:"7px 14px",background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>✅ Add to Plan</button>
+              <button onClick={()=>setSuggestion(null)} style={{padding:"7px 12px",background:"rgba(139,94,60,0.08)",color:"#9c8672",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>Dismiss</button>
             </div>
           </div>
         </div>
@@ -304,8 +292,8 @@ export default function MealPlanner() {
       {view==="week" && (
         <div style={s.weekGrid}>
           {DAYS.map((day,di)=>{
-            const dayColor=DAY_COLORS[di];
-            const dayCals=totalCals(day);
+            const dayColor = DAY_COLORS[di];
+            const dayCals  = totalCals(day);
             return (
               <div key={day} style={s.dayCol}>
                 <div style={{...s.dayHeader,borderTop:`3px solid ${dayColor}`,background:`${dayColor}08`}}>
@@ -313,7 +301,7 @@ export default function MealPlanner() {
                   <span style={s.dayCals}>{dayCals?dayCals+"kcal":""}</span>
                 </div>
                 {MEALS.map(meal=>{
-                  const item=plan[`${day}_${meal}`];
+                  const item = plan[`${day}_${meal}`];
                   return (
                     <div key={meal} style={s.mealCell}>
                       <span style={s.mealLabel}>{meal}</span>
@@ -358,7 +346,7 @@ export default function MealPlanner() {
             </div>
             <div style={s.dayMealGrid}>
               {MEALS.map(meal=>{
-                const item=plan[`${activeDay}_${meal}`];
+                const item = plan[`${activeDay}_${meal}`];
                 return (
                   <div key={meal} style={s.dayMealCard}>
                     <div style={s.dayMealHeader}>
@@ -418,9 +406,7 @@ export default function MealPlanner() {
             </div>
             <div style={{marginTop:14,paddingTop:14,borderTop:"1px solid rgba(139,94,60,0.08)",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
               <span style={{fontSize:12,color:"#9c8672"}}>Want more recipes?</span>
-              <button onClick={()=>{setActiveMeal(null);navigate("/recipes");}} style={{padding:"7px 14px",background:"rgba(255,107,43,0.1)",color:"#ff6b2b",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                🍛 Browse Recipes →
-              </button>
+              <button onClick={()=>{setActiveMeal(null);navigate("/recipes");}} style={{padding:"7px 14px",background:"rgba(255,107,43,0.1)",color:"#ff6b2b",border:"none",borderRadius:8,fontSize:12,fontWeight:700,cursor:"pointer"}}>🍛 Browse Recipes →</button>
             </div>
           </div>
         </div>

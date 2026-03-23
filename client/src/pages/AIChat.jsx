@@ -1,9 +1,6 @@
-// AIChat.jsx — Fixed: No Gemini, no overlap, pure built-in chatbot, clean 3D UI
+// AIChat.jsx — Fixed: uses shared axios instance, no CORS errors, no overlap, pure built-in chatbot
 import { useEffect, useState, useRef, useCallback } from "react";
-import axios from "axios";
-
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
-
+import API from "../api/axios";
 
 // ══════════════════════════════════════════════════════════════════════════
 //  BUILT-IN FOOD AI — 100% offline, no quota issues, no Gemini needed
@@ -66,25 +63,21 @@ const BUILTIN_AI = {
 
   process(msg, pantry) {
     const q = msg.toLowerCase();
-
     for (const [key, r] of Object.entries(this.recipes)) {
       if (q.includes(key)) {
         return `## 🍽️ ${r.n}\n**⏱️ ${r.time}  •  🔥 ${r.cal} cal  •  Serves 2-3**\n\n### 📦 Ingredients\n${r.ing.map((i,n)=>`${n+1}. ${i}`).join('\n')}\n\n### 👨‍🍳 Step-by-Step Instructions\n${r.steps.map((s,n)=>`**${n+1}.** ${s}`).join('\n')}\n\n### 💡 Pro Tips\n- Taste and adjust salt before serving\n- Leftovers taste even better next day!`;
       }
     }
-
     if (q.includes('meal plan') || q.includes('diet plan') || q.includes('weekly') || q.includes('7 day')) {
       const type = q.includes('weight') || q.includes('lose') ? 'weightloss' : q.includes('protein') || q.includes('gym') ? 'highprotein' : q.includes('diabet') ? 'diabetic' : 'weightloss';
       const titles = {weightloss:'⚖️ 7-Day Weight Loss Meal Plan', highprotein:'💪 7-Day High Protein Plan', diabetic:'🩺 7-Day Diabetic-Friendly Plan'};
       return `## ${titles[type]}\n\n${this.mealPlans[type].map(d=>`### 📅 ${d.day}\n🌅 **Breakfast:** ${d.b}\n☀️ **Lunch:** ${d.l}\n🌙 **Dinner:** ${d.d}\n🍎 **Snack:** ${d.s}`).join('\n\n')}\n\n### 💡 Key Rules\n- **Drink 2-3 litres of water daily**\n- Eat dinner before 8 PM\n- Never skip breakfast`;
     }
-
     for (const [food, info] of Object.entries(this.nutrition)) {
       if ((q.includes('nutrition') || q.includes('calorie') || q.includes('protein in') || q.includes('healthy')) && q.includes(food)) {
         return `## 🥗 Nutrition: ${food.charAt(0).toUpperCase()+food.slice(1)}\n\n| Nutrient | Per 100g |\n|---|---|\n| 🔥 Calories | ${info.cal} |\n| 💪 Protein | ${info.protein} |\n| 🧈 Fat | ${info.fat} |\n| 🍞 Carbs | ${info.carbs} |\n\n### 💡 Expert Tip\n${info.tip}`;
       }
     }
-
     if (q.includes('cook today') || q.includes('what can i make') || q.includes('pantry') || q.includes('what to cook')) {
       const items = pantry ? pantry.replace('My pantry: ','').split(',').map(i=>i.trim().toLowerCase()) : [];
       const matches = [];
@@ -95,24 +88,19 @@ const BUILTIN_AI = {
       const show = matches.length > 0 ? matches.slice(0,3) : [this.recipes.dal, this.recipes.poha, this.recipes.egg];
       return `## 🍳 What You Can Cook Today!\n${items.length > 0 ? `\nYour pantry has: **${items.slice(0,6).join(', ')}**\n` : ''}\n${show.map((r,i)=>`### ${i+1}. ${r.n}\n⏱️ ${r.time} • 🔥 ${r.cal} cal\n**Quick steps:** ${r.steps.slice(0,3).join(' → ')}`).join('\n\n')}\n\n💡 Ask me **"How do I make [recipe name]?"** for full recipe!`;
     }
-
     if (q.includes('breakfast')) {
       return `## 🌅 5 Best Indian Breakfast Ideas\n\n### 1. 🫔 Masala Poha (250 cal, 15 min) ⭐\nWash poha, temper mustard+curry leaves, add onion, toss — done!\n\n### 2. 🥞 Moong Dal Chilla (200 cal, 20 min)\nProtein pancakes from soaked moong dal batter with veggies.\n\n### 3. 🍳 Egg Bhurji + Toast (300 cal, 10 min)\nSpiced scrambled eggs — fastest high-protein breakfast!\n\n### 4. 🫙 Sprouts Bowl (160 cal, 5 min)\nOvernight sprouted moong + cucumber + tomato + lemon.\n\n### 5. 🥣 Masala Oats (180 cal, 5 min)\nOats with veggies + cumin + green chilli.\n\n💡 **Rule:** Always eat within 1 hour of waking. Include protein!`;
     }
-
     if (q.includes('quick') || q.includes('fast') || q.includes('15 min') || q.includes('easy dinner')) {
-      return `## ⏱️ 5 Dinners Under 15 Minutes\n\n### 1. 🥚 Egg Bhurji + Roti (10 min, 300 cal)\nScramble spiced eggs with onion-tomato. Quickest protein dinner.\n\n### 2. 🫔 Poha (15 min, 250 cal)\nWash, temper, cook. Done. Perfect when exhausted.\n\n### 3. 🥣 Khichdi (15 min, 320 cal)\nRice + moong dal + turmeric + ghee. One-pot comfort food.\n\n### 4. 🥗 Raita + Leftover Roti (5 min)\nCurd + cucumber + cumin. Pair with yesterday's rotis!\n\n### 5. 🫘 Dal + Rice (12 min)\nPressure cook dal, temper, serve. Always satisfying.\n\n💡 **Hack:** Cook dal+rice in bulk on Sunday!`;
+      return `## ⏱️ 5 Dinners Under 15 Minutes\n\n### 1. 🥚 Egg Bhurji + Roti (10 min, 300 cal)\n### 2. 🫔 Poha (15 min, 250 cal)\n### 3. 🥣 Khichdi (15 min, 320 cal)\n### 4. 🥗 Raita + Leftover Roti (5 min)\n### 5. 🫘 Dal + Rice (12 min)\n\n💡 **Hack:** Cook dal+rice in bulk on Sunday!`;
     }
-
     if (q.includes('grocery') || q.includes('shopping') || q.includes('buy')) {
-      return `## 🛒 Smart Weekly Grocery List (₹1,800–2,200)\n\n### 🥦 Vegetables & Fruits (₹400-500)\n- Onions 1kg ₹40 · Tomatoes 1kg ₹30 · Potatoes 500g ₹25\n- Spinach 2 bunches ₹30 · Cauliflower 1 ₹40\n- Seasonal fruits — bananas, apples, oranges ₹150\n\n### 🌾 Staples (₹500-600)\n- Basmati rice 2kg ₹160 · Atta 2kg ₹100\n- Toor dal 500g ₹70 · Moong dal 500g ₹80\n\n### 🧀 Proteins (₹400-500)\n- Eggs 12 pcs ₹80 · Paneer 250g ₹120 · Curd 500g ₹60\n- Chicken 500g ₹160 · Milk 2L ₹80\n\n💡 **Save 30-40%:** Buy vegetables from your local sabzi mandi!`;
+      return `## 🛒 Smart Weekly Grocery List (₹1,800–2,200)\n\n### 🥦 Vegetables & Fruits (₹400-500)\n- Onions 1kg ₹40 · Tomatoes 1kg ₹30 · Potatoes 500g ₹25\n- Seasonal fruits — bananas, apples, oranges ₹150\n\n### 🌾 Staples (₹500-600)\n- Basmati rice 2kg ₹160 · Atta 2kg ₹100\n- Toor dal 500g ₹70 · Moong dal 500g ₹80\n\n### 🧀 Proteins (₹400-500)\n- Eggs 12 pcs ₹80 · Paneer 250g ₹120 · Curd 500g ₹60\n- Chicken 500g ₹160 · Milk 2L ₹80\n\n💡 **Save 30-40%:** Buy from your local sabzi mandi!`;
     }
-
     if (q.includes('tip') || q.includes('trick') || q.includes('advice')) {
-      return `## 💡 Pro Indian Cooking Tips\n\n### 🔥 Heat Management\n- Low and slow for dal — develops richer flavour\n- High heat for stir-fries — keeps veggies crisp\n- Always preheat pan before adding oil\n\n### 🧂 Seasoning Secrets\n- Add garam masala at the END, not beginning\n- Kasuri methi (dried fenugreek) elevates any curry instantly\n- Balance salt with a pinch of sugar in tomato-based curries\n\n### ⏰ Time-Saving Hacks\n- Meal prep dals and rice on Sunday in bulk\n- Freeze ginger-garlic paste in ice cube trays\n- Keep boiled eggs in fridge for instant protein\n\n### ❌ Beginner Mistakes to Avoid\n- Never add wet ingredients to very hot oil (splatter!)\n- Don't crowd the pan — it steams instead of sautés\n- Always taste before serving!`;
+      return `## 💡 Pro Indian Cooking Tips\n\n### 🔥 Heat Management\n- Low and slow for dal — develops richer flavour\n- High heat for stir-fries — keeps veggies crisp\n\n### 🧂 Seasoning Secrets\n- Add garam masala at the END, not beginning\n- Kasuri methi elevates any curry instantly\n\n### ⏰ Time-Saving Hacks\n- Meal prep dals and rice on Sunday in bulk\n- Freeze ginger-garlic paste in ice cube trays\n\n### ❌ Beginner Mistakes\n- Don't crowd the pan — it steams instead of sautés\n- Always taste before serving!`;
     }
-
-    return `## 🤖 HomeHub AI Chef — Namaste! 🙏\n\nI'm your built-in kitchen assistant. Here's what I can help you with:\n\n### 🍽️ Full Recipes (just ask!)\nDal Tadka · Paneer Butter Masala · Chicken Biryani · Poha\nEgg Bhurji · Khichdi · Rajma · Palak Paneer · Upma · Chole Bhature\n\n### 📅 Meal Plans\n- *"7 day meal plan for weight loss"*\n- *"High protein 7 day plan for gym"*\n- *"Diabetic-friendly weekly diet"*\n\n### 🥗 Nutrition & More\n- *"Nutrition info for paneer"*\n- *"What can I cook today?"* — from your pantry\n- *"Budget grocery list for the week"*\n- *"Quick 15 minute dinner ideas"*\n- *"Healthy breakfast ideas"*\n- *"Pro cooking tips"*\n\nJust ask naturally — I understand plain English! 😊`;
+    return `## 🤖 HomeHub AI Chef — Namaste! 🙏\n\nI'm your built-in kitchen assistant. Here's what I can help you with:\n\n### 🍽️ Full Recipes (just ask!)\nDal Tadka · Paneer Butter Masala · Chicken Biryani · Poha\nEgg Bhurji · Khichdi · Rajma · Palak Paneer · Upma · Chole Bhature\n\n### 📅 Meal Plans\n- *"7 day meal plan for weight loss"*\n- *"High protein 7 day plan for gym"*\n- *"Diabetic-friendly weekly diet"*\n\n### 🥗 Nutrition & More\n- *"Nutrition info for paneer"*\n- *"What can I cook today?"*\n- *"Budget grocery list for the week"*\n- *"Quick 15 minute dinner ideas"*\n\nJust ask naturally — I understand plain English! 😊`;
   }
 };
 
@@ -157,105 +145,82 @@ export default function AIChat() {
   }]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [household, setHousehold] = useState(null);
   const [pantryCtx, setPantryCtx] = useState("");
   const [pantryItems, setPantryItems] = useState([]);
   const [copiedId, setCopiedId] = useState(null);
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
   const msgId     = useRef(2);
-  const token     = localStorage.getItem("token");
-  const headers   = { Authorization:`Bearer ${token}` };
 
-  useEffect(()=>{
-    axios.get(`${API}/household/myhousehold`,{headers}).then(r=>{
-      setHousehold(r.data);
-      axios.get(`${API}/pantry/${r.data._id}`,{headers}).then(p=>{
-        const items = p.data||[];
-        setPantryItems(items);
-        if(items.length>0) setPantryCtx(`My pantry: ${items.map(i=>`${i.name}(${i.quantity}${i.unit||''})`).join(', ')}`);
-      }).catch(()=>{});
-    }).catch(()=>{});
-  },[]);
+  // ── FIX: use shared API instance (no raw axios, no headers, no CORS) ──
+  useEffect(() => {
+    API.get('/household/myhousehold')
+      .then(r => {
+        const hhId = r.data?._id;
+        if (!hhId) return;
+        API.get(`/pantry/${hhId}`)
+          .then(p => {
+            const items = p.data || [];
+            setPantryItems(items);
+            if (items.length > 0)
+              setPantryCtx(`My pantry: ${items.map(i=>`${i.name}(${i.quantity}${i.unit||''})`).join(', ')}`);
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
+  }, []);
 
-  useEffect(()=>{ bottomRef.current?.scrollIntoView({behavior:"smooth"}); },[messages]);
+  useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [messages]);
 
-  const sendMessage = useCallback(async (text)=>{
-    const msg = (text||input).trim();
-    if(!msg||loading) return;
+  const sendMessage = useCallback(async (text) => {
+    const msg = (text || input).trim();
+    if (!msg || loading) return;
     setInput("");
-
     const uid = msgId.current++;
     const aid = msgId.current++;
-    setMessages(prev=>[...prev,{id:uid,role:"user",content:msg,time:new Date()}]);
+    setMessages(prev => [...prev, {id:uid, role:"user", content:msg, time:new Date()}]);
     setLoading(true);
 
     let reply = null;
 
-    // 1. Try Pollinations.ai — 100% free, no API key needed
+    // 1. Try backend /chat route (uses Gemini server-side — zero CORS issues)
     try {
-      const systemPrompt = `You are HomeHub AI Chef — a friendly Indian cooking assistant. You specialize in Indian recipes, meal plans, nutrition advice, and grocery budgeting. ${pantryCtx ? "User's pantry: " + pantryCtx : ""} Give practical, step-by-step responses with emojis. Keep answers concise and helpful.`;
-      const pollMessages = [
-        ...messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        { role: "user", content: msg }
-      ];
-      const resp = await fetch("https://text.pollinations.ai/openai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "openai-large",
-          messages: [{ role: "system", content: systemPrompt }, ...pollMessages],
-          max_tokens: 800,
-          seed: 42,
-        }),
-        signal: AbortSignal.timeout(12000),
+      const r = await API.post('/chat', {
+        message: msg,
+        pantry:  pantryCtx,
+        history: messages.slice(-6).map(m => ({role:m.role, content:m.content})),
       });
-      if (resp.ok) {
-        const data = await resp.json();
-        const txt = data?.choices?.[0]?.message?.content;
-        if (txt && txt.length > 10) reply = txt;
-      }
+      if (r.data?.reply) reply = r.data.reply;
     } catch {}
 
-    // 2. Try local server /chat as second option
-    if (!reply) {
-      try {
-        const r = await axios.post(`${API}/chat`, {
-          message: msg, pantry: pantryCtx,
-          history: messages.slice(-6).map(m => ({ role: m.role, content: m.content })),
-        }, { headers, timeout: 8000 });
-        if (r.data?.reply) reply = r.data.reply;
-      } catch {}
-    }
-
-    // 3. Always-available built-in AI as final fallback
+    // 2. Always-available built-in AI as final fallback
     if (!reply) reply = BUILTIN_AI.process(msg, pantryCtx);
 
-    setMessages(prev=>[...prev,{id:aid,role:"assistant",content:reply,time:new Date(),reactions:{up:0,down:0}}]);
+    setMessages(prev => [...prev, {id:aid, role:"assistant", content:reply, time:new Date(), reactions:{up:0,down:0}}]);
     setLoading(false);
-    setTimeout(()=>inputRef.current?.focus(),100);
-  },[input,loading,messages,pantryCtx]);
+    setTimeout(() => inputRef.current?.focus(), 100);
+  }, [input, loading, messages, pantryCtx]);
 
-  const react=(id,type)=>setMessages(prev=>prev.map(m=>m.id===id?{...m,reactions:{...m.reactions,[type]:(m.reactions?.[type]||0)+1}}:m));
-  const clearChat=()=>{
-    setMessages([{id:msgId.current++,role:"assistant",content:"Chat cleared! 🧹 What would you like to cook or plan today?",time:new Date(),reactions:{up:0,down:0}}]);
+  const react = (id, type) => setMessages(prev => prev.map(m => m.id===id ? {...m, reactions:{...m.reactions, [type]:(m.reactions?.[type]||0)+1}} : m));
+  const clearChat = () => {
+    setMessages([{id:msgId.current++, role:"assistant", content:"Chat cleared! 🧹 What would you like to cook or plan today?", time:new Date(), reactions:{up:0,down:0}}]);
   };
-  const copyMsg=(id,c)=>{
-    const p=c.replace(/\*{1,3}(.*?)\*{1,3}/g,"$1").replace(/^#+\s/gm,"").replace(/<[^>]+>/g,"");
-    navigator.clipboard.writeText(p).then(()=>{setCopiedId(id);setTimeout(()=>setCopiedId(null),2000);});
+  const copyMsg = (id, c) => {
+    const p = c.replace(/\*{1,3}(.*?)\*{1,3}/g,"$1").replace(/^#+\s/gm,"").replace(/<[^>]+>/g,"");
+    navigator.clipboard.writeText(p).then(() => { setCopiedId(id); setTimeout(() => setCopiedId(null), 2000); });
   };
 
   return (
     <div style={{display:"flex",flexDirection:"column",height:"calc(100vh - 120px)",fontFamily:"'Plus Jakarta Sans',sans-serif",gap:12,overflow:"hidden"}}>
 
-      {/* ── HERO — fixed height, no overflow ── */}
+      {/* ── HERO ── */}
       <div style={{position:"relative",borderRadius:20,overflow:"hidden",height:110,flexShrink:0,boxShadow:"0 8px 32px rgba(0,0,0,0.15)"}}>
         <img src="https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=1200&q=80" alt="" style={{position:"absolute",inset:0,width:"100%",height:"100%",objectFit:"cover"}}/>
         <div style={{position:"absolute",inset:0,background:"linear-gradient(135deg,rgba(26,20,16,0.92),rgba(26,20,16,0.5))"}}/>
         <div style={{position:"relative",zIndex:2,padding:"16px 28px",height:"100%",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div>
             <div style={{display:"inline-flex",alignItems:"center",gap:6,background:"rgba(45,122,79,0.3)",border:"1px solid rgba(45,122,79,0.5)",color:"#a5d6a7",borderRadius:50,padding:"3px 12px",fontSize:11,fontWeight:700,marginBottom:6}}>
-              ✨ Pollinations AI · Free · Works Offline too
+              ✨ Built-in AI Chef · Works Offline · No CORS
             </div>
             <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:20,fontWeight:800,color:"white",margin:"0 0 2px"}}>AI Kitchen Assistant</h1>
             <p style={{fontSize:11,color:"rgba(255,255,255,0.5)",margin:0}}>Recipes, meal plans, nutrition & cooking advice</p>
@@ -266,14 +231,14 @@ export default function AIChat() {
         </div>
       </div>
 
-      {/* ── MAIN GRID — sidebar + chat, no overlap ── */}
+      {/* ── MAIN GRID ── */}
       <div style={{display:"grid",gridTemplateColumns:"210px 1fr",gap:12,flex:1,minHeight:0,overflow:"hidden"}}>
 
         {/* Sidebar */}
         <div style={{background:"white",borderRadius:16,padding:12,boxShadow:"0 4px 20px rgba(139,94,60,0.08)",overflowY:"auto",display:"flex",flexDirection:"column",gap:5}}>
           <div style={{fontWeight:800,fontSize:13,color:"#1a1410",marginBottom:4}}>✨ Quick Ask</div>
-          {QUICK_PROMPTS.map((q,i)=>(
-            <button key={i} onClick={()=>sendMessage(q.prompt)} disabled={loading}
+          {QUICK_PROMPTS.map((q,i) => (
+            <button key={i} onClick={() => sendMessage(q.prompt)} disabled={loading}
               style={{display:"flex",alignItems:"center",gap:8,padding:"7px 10px",background:"rgba(139,94,60,0.04)",border:"1px solid rgba(139,94,60,0.1)",borderRadius:10,cursor:"pointer",textAlign:"left",width:"100%",opacity:loading?0.5:1,transition:"all .15s"}}
               onMouseEnter={e=>{e.currentTarget.style.background="rgba(255,107,43,0.08)";e.currentTarget.style.borderColor="rgba(255,107,43,0.2)";}}
               onMouseLeave={e=>{e.currentTarget.style.background="rgba(139,94,60,0.04)";e.currentTarget.style.borderColor="rgba(139,94,60,0.1)";}}>
@@ -283,9 +248,9 @@ export default function AIChat() {
             </button>
           ))}
           <div style={{marginTop:8,background:"rgba(45,122,79,0.05)",border:"1px solid rgba(45,122,79,0.15)",borderRadius:12,padding:10}}>
-            <div style={{fontSize:11,fontWeight:700,color:"#2d7a4f",marginBottom:3}}>✨ Pollinations AI</div>
+            <div style={{fontSize:11,fontWeight:700,color:"#2d7a4f",marginBottom:3}}>✨ Built-in AI</div>
             <div style={{fontSize:10,color:"#5c7a60",lineHeight:1.5}}>
-              Powered by Pollinations AI + Built-in recipes. Works offline too!
+              Works offline. No API keys. No CORS issues. Pure built-in recipes!
             </div>
           </div>
         </div>
@@ -300,7 +265,7 @@ export default function AIChat() {
                 <div style={{fontWeight:700,fontSize:13,color:"#1a1410"}}>HomeHub AI Chef</div>
                 <div style={{fontSize:10,color:loading?"#ff6b2b":"#2d7a4f",fontWeight:600,display:"flex",alignItems:"center",gap:4}}>
                   <span style={{width:6,height:6,borderRadius:"50%",background:loading?"#ff6b2b":"#2d7a4f",display:"inline-block"}}/>
-                  {loading?"Cooking up an answer…":"Pollinations AI ✨"}
+                  {loading?"Cooking up an answer…":"Ready to help ✨"}
                 </div>
               </div>
             </div>
@@ -310,9 +275,9 @@ export default function AIChat() {
             </div>
           </div>
 
-          {/* Messages — scrollable */}
+          {/* Messages */}
           <div style={{flex:1,overflowY:"auto",padding:"14px 16px",display:"flex",flexDirection:"column",gap:14}}>
-            {messages.map(msg=>(
+            {messages.map(msg => (
               <div key={msg.id} style={{display:"flex",gap:10,alignItems:"flex-end",flexDirection:msg.role==="user"?"row-reverse":"row"}}>
                 <div style={{width:32,height:32,borderRadius:"50%",background:msg.role==="user"?"linear-gradient(135deg,#ff6b2b,#ff8c54)":"linear-gradient(135deg,#1a1410,#3d2c1e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,flexShrink:0}}>
                   {msg.role==="user"?"👤":"🤖"}
@@ -322,22 +287,22 @@ export default function AIChat() {
                     <div style={{fontSize:14,lineHeight:1.75,wordBreak:"break-word"}} dangerouslySetInnerHTML={{__html:formatMessage(msg.content)}}/>
                     <div style={{fontSize:10,marginTop:8,color:msg.role==="user"?"rgba(255,255,255,0.65)":"#b0a090"}}>{timeStr(msg.time)}</div>
                   </div>
-                  {msg.role==="assistant"&&(
+                  {msg.role==="assistant" && (
                     <div style={{display:"flex",gap:5,paddingLeft:4,flexWrap:"wrap"}}>
-                      <button onClick={()=>copyMsg(msg.id,msg.content)} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>{copiedId===msg.id?"✓ Copied!":"📋 Copy"}</button>
-                      <button onClick={()=>react(msg.id,"up")} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>👍{msg.reactions?.up>0?` ${msg.reactions.up}`:""}</button>
-                      <button onClick={()=>react(msg.id,"down")} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>👎{msg.reactions?.down>0?` ${msg.reactions.down}`:""}</button>
+                      <button onClick={() => copyMsg(msg.id,msg.content)} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>{copiedId===msg.id?"✓ Copied!":"📋 Copy"}</button>
+                      <button onClick={() => react(msg.id,"up")} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>👍{msg.reactions?.up>0?` ${msg.reactions.up}`:""}</button>
+                      <button onClick={() => react(msg.id,"down")} style={{padding:"3px 8px",borderRadius:7,border:"1px solid rgba(139,94,60,0.12)",background:"rgba(139,94,60,0.04)",color:"#9c8672",fontSize:10,fontWeight:600,cursor:"pointer"}}>👎{msg.reactions?.down>0?` ${msg.reactions.down}`:""}</button>
                     </div>
                   )}
                 </div>
               </div>
             ))}
-            {loading&&(
+            {loading && (
               <div style={{display:"flex",gap:10,alignItems:"flex-end"}}>
                 <div style={{width:32,height:32,borderRadius:"50%",background:"linear-gradient(135deg,#1a1410,#3d2c1e)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:15}}>🤖</div>
                 <div style={{padding:"14px 18px",borderRadius:"20px 20px 20px 4px",background:"white",border:"1px solid rgba(139,94,60,0.08)"}}>
                   <div style={{display:"flex",gap:5,alignItems:"center"}}>
-                    {[0,1,2].map(i=><span key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,107,43,0.45)",display:"inline-block",animation:`bounce 1.2s infinite ${i*0.15}s`}}/>)}
+                    {[0,1,2].map(i => <span key={i} style={{width:8,height:8,borderRadius:"50%",background:"rgba(255,107,43,0.45)",display:"inline-block",animation:`bounce 1.2s infinite ${i*0.15}s`}}/>)}
                     <span style={{fontSize:11,color:"#9c8672",marginLeft:6}}>Cooking up an answer…</span>
                   </div>
                 </div>
@@ -346,21 +311,21 @@ export default function AIChat() {
             <div ref={bottomRef}/>
           </div>
 
-          {/* Input area — always at bottom */}
+          {/* Input */}
           <div style={{padding:"10px 16px",borderTop:"1px solid rgba(139,94,60,0.07)",flexShrink:0,background:"white"}}>
             <div style={{display:"flex",gap:10}}>
               <input ref={inputRef} value={input}
-                onChange={e=>setInput(e.target.value)}
-                onKeyDown={e=>e.key==="Enter"&&!e.shiftKey&&(e.preventDefault(),sendMessage())}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => e.key==="Enter" && !e.shiftKey && (e.preventDefault(), sendMessage())}
                 placeholder="Ask about recipes, meal plans, nutrition, groceries…"
                 disabled={loading}
                 style={{flex:1,padding:"12px 16px",border:"1.5px solid rgba(139,94,60,0.15)",borderRadius:50,fontSize:13,background:"#fdf8f3",color:"#1a1410",outline:"none"}}/>
-              <button onClick={()=>sendMessage()} disabled={loading||!input.trim()}
+              <button onClick={() => sendMessage()} disabled={loading || !input.trim()}
                 style={{padding:"12px 22px",background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",borderRadius:50,fontSize:13,fontWeight:700,cursor:"pointer",boxShadow:"0 4px 14px rgba(255,107,43,0.3)",opacity:(loading||!input.trim())?0.5:1,whiteSpace:"nowrap",transition:"all 0.2s"}}>
                 {loading?"…":"Send ↑"}
               </button>
             </div>
-            <div style={{fontSize:10,color:"#b0a090",marginTop:6}}>Enter to send · Built-in AI works offline</div>
+            <div style={{fontSize:10,color:"#b0a090",marginTop:6}}>Enter to send · Built-in AI works offline · No CORS issues</div>
           </div>
         </div>
       </div>

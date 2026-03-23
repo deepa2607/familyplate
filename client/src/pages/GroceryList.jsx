@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../api/axios";
 import { useToast } from "../components/Toast";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
-
+// ── UNIFIED CART KEY — must match SmartCart.jsx and Recipes.jsx ──────────
+const SMART_CART_KEY = "homehub_smartcart_v2";
+const GROCERY_KEY    = "groceryList";
+const CHECKED_KEY    = "groceryChecked";
 
 const CAT_META = {
   Vegetables:{ icon:"🥦", color:"#2d7a4f", img:"https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&q=80" },
@@ -15,10 +17,6 @@ const CAT_META = {
   Snacks:    { icon:"🍪", color:"#f59e0b", img:"https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=300&q=80" },
   Other:     { icon:"📦", color:"#5c4a35", img:"https://images.unsplash.com/photo-1542838132-92c53300491e?w=300&q=80" },
 };
-
-const SMART_CART_KEY = "homehub_smartcart_v2";
-const GROCERY_KEY    = "groceryList"; // base key — actual key uses householdId
-const CHECKED_KEY    = "groceryChecked";
 
 const SMART_SUGGESTIONS = [
   { name:"Onions",      cat:"Vegetables", qty:"2",  unit:"kg",     icon:"🧅",  est:40  },
@@ -84,8 +82,8 @@ export default function GroceryList() {
   const [household, setHousehold]   = useState(null);
   const [pantryLowStock, setPantryLowStock] = useState([]);
   const [recipes, setRecipes]       = useState([]);
-  const [householdKey, setHouseholdKey] = useState(GROCERY_KEY); // becomes groceryList_<hhId>
-  const [checkedKey, setCheckedKey]     = useState("groceryChecked");
+  const [householdKey, setHouseholdKey] = useState(GROCERY_KEY);
+  const [checkedKey, setCheckedKey]     = useState(CHECKED_KEY);
   const [groceryList, setGroceryList]   = useState([]);
   const [checked, setChecked]           = useState([]);
   const [showForm, setShowForm]     = useState(false);
@@ -94,14 +92,11 @@ export default function GroceryList() {
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [showRecipes, setShowRecipes]         = useState(true);
   const [loading, setLoading]       = useState(true);
-  const token   = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
 
   useEffect(() => { load(); }, []);
 
   // ── Sync SmartCart checkout events to grocery "Got" list ──────────
   useEffect(() => {
-    // Check immediately on mount (handles navigation-after-checkout case)
     const checkAndSync = () => {
       const raw = localStorage.getItem("homehub_cart_checkout");
       if (!raw) return;
@@ -113,7 +108,7 @@ export default function GroceryList() {
         localStorage.removeItem("homehub_cart_checkout_ts");
       } catch {}
     };
-    checkAndSync(); // run immediately
+    checkAndSync();
     const interval = setInterval(checkAndSync, 800);
     return () => clearInterval(interval);
   }, [groceryList]);
@@ -138,24 +133,24 @@ export default function GroceryList() {
 
   const load = async () => {
     try {
-      const res = await axios.get(`${API}/household/myhousehold`, { headers });
+      // ── FIX: use shared API instance (no raw axios, no headers) ──
+      const res = await API.get('/household/myhousehold');
       if (res.data) {
         setHousehold(res.data);
-        // Set per-household localStorage keys so each household has its own grocery list
         const hhKey  = `groceryList_${res.data._id}`;
         const chKey  = `groceryChecked_${res.data._id}`;
         setHouseholdKey(hhKey);
         setCheckedKey(chKey);
-        // Load this household's saved grocery list
         try {
           const saved = JSON.parse(localStorage.getItem(hhKey) || "[]");
           setGroceryList(saved);
           const savedCh = JSON.parse(localStorage.getItem(chKey) || "[]");
           setChecked(savedCh);
         } catch {}
+        // ── FIX: use shared API instance ──
         const [pRes, rRes] = await Promise.all([
-          axios.get(`${API}/pantry/${res.data._id}`, { headers }),
-          axios.get(`${API}/recipe/suggest/${res.data._id}`, { headers }).catch(() => ({ data: [] })),
+          API.get(`/pantry/${res.data._id}`),
+          API.get(`/recipe/suggest/${res.data._id}`).catch(() => ({ data: [] })),
         ]);
         const pItems = pRes.data || [];
         setPantryLowStock(pItems.filter(i => i.quantity <= (i.lowStockThreshold || 1)));
@@ -177,47 +172,32 @@ export default function GroceryList() {
   };
 
   const saveList    = (list) => { setGroceryList(list); localStorage.setItem(householdKey||GROCERY_KEY, JSON.stringify(list)); };
-  const saveChecked = (ch)   => { setChecked(ch); localStorage.setItem(checkedKey||"groceryChecked", JSON.stringify(ch)); };
+  const saveChecked = (ch)   => { setChecked(ch); localStorage.setItem(checkedKey||CHECKED_KEY, JSON.stringify(ch)); };
 
-  // ── ADD ITEM (form submit) ────────────────────────────────────────────────
   const addItem = (e) => {
     e.preventDefault();
     if (!form.name.trim()) { toast("Enter item name", "warning"); return; }
     const price = parseFloat(form.est) || getMarketPrice(form.name);
-    const item = {
-      id: Date.now(),
-      name: form.name.trim(),
-      cat: form.cat,
-      qty: form.qty || "1",
-      unit: form.unit,
-      est: price,
-    };
+    const item = { id: Date.now(), name: form.name.trim(), cat: form.cat, qty: form.qty || "1", unit: form.unit, est: price };
     saveList([...groceryList, item]);
     toast(`${form.name} added to grocery list!`, "success");
     setShowForm(false);
     setForm({ name:"", cat:"Vegetables", qty:"1", unit:"kg", est:"" });
   };
 
-  // ── QUICK ADD from suggestion ─────────────────────────────────────────────
   const quickAdd = (sug) => {
-    if (groceryList.find(i => i.name.toLowerCase() === sug.name.toLowerCase())) {
-      toast(`${sug.name} already in list`, "info"); return;
-    }
+    if (groceryList.find(i => i.name.toLowerCase() === sug.name.toLowerCase())) { toast(`${sug.name} already in list`, "info"); return; }
     saveList([...groceryList, { id: Date.now(), name: sug.name, cat: sug.cat, qty: sug.qty, unit: sug.unit, est: sug.est }]);
     toast(`${sug.name} added!`, "success");
   };
 
-  // ── ADD FROM PANTRY LOW STOCK ─────────────────────────────────────────────
   const addFromPantry = (pantryItem) => {
-    if (groceryList.find(i => i.name.toLowerCase() === pantryItem.name.toLowerCase())) {
-      toast(`${pantryItem.name} already in list`, "info"); return;
-    }
+    if (groceryList.find(i => i.name.toLowerCase() === pantryItem.name.toLowerCase())) { toast(`${pantryItem.name} already in list`, "info"); return; }
     const cat = Object.keys(CAT_META).find(c => c === pantryItem.category) || guessCategory(pantryItem.name);
     saveList([...groceryList, { id: Date.now(), name: pantryItem.name, cat, qty: "1", unit: pantryItem.unit || "pieces", est: getMarketPrice(pantryItem.name) }]);
     toast(`${pantryItem.name} added from pantry!`, "success");
   };
 
-  // ── ADD ALL MISSING INGREDIENTS FROM RECIPE ───────────────────────────────
   const addMissingForRecipe = (recipe) => {
     const existing = groceryList.map(i => i.name.toLowerCase());
     const toAdd = recipe.missingIngredients
@@ -236,27 +216,25 @@ export default function GroceryList() {
     toast(`${toAdd.length} items from "${recipe.name}" added! 🍳`, "success");
   };
 
-  // ── ADD GROCERY ITEM TO SMART CART ───────────────────────────────────────
+  // ── Add grocery item to Smart Cart (unified SMART_CART_KEY) ──────────
   const addItemToCart = (item) => {
     try {
       const cartItems = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
-      if (cartItems.find(c => c.name.toLowerCase() === item.name.toLowerCase())) {
-        toast(`${item.name} already in cart`, "info"); return;
-      }
+      if (cartItems.find(c => c.name.toLowerCase() === item.name.toLowerCase())) { toast(`${item.name} already in cart`, "info"); return; }
       const price = item.est || getMarketPrice(item.name) || 0;
       const catIcon = CAT_META[item.cat]?.icon || "📦";
-      // qty=1 always; encode "250g" or "1cup" into unit label
       const rawQty = item.qty ? String(item.qty).trim() : "";
       const rawUnit = item.unit || "pieces";
       const unitLabel = rawQty && rawQty !== "1" ? `${rawQty}${rawUnit}` : rawUnit;
       const newItem = { id: Date.now(), name: item.name, cat: item.cat, qty: 1, unit: unitLabel, price, icon: catIcon };
       const updated = [...cartItems, newItem];
       localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
+      window.dispatchEvent(new Event("storage"));
       toast(`${item.name} added to Smart Cart! ⚡`, "success");
     } catch (e) { toast("Could not add to cart", "error"); }
   };
 
-  // ── ADD ALL GROCERY LIST ITEMS TO SMART CART ─────────────────────────────
+  // ── Add ALL grocery list items to Smart Cart ────────────────────────
   const addAllToCart = () => {
     try {
       const cartItems = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
@@ -273,6 +251,7 @@ export default function GroceryList() {
         }
       });
       localStorage.setItem(SMART_CART_KEY, JSON.stringify(newCart));
+      window.dispatchEvent(new Event("storage"));
       if (added > 0) toast(`${added} items sent to Smart Cart! ⚡`, "success");
       else toast("All items already in cart", "info");
     } catch { toast("Error adding to cart", "error"); }
@@ -282,7 +261,7 @@ export default function GroceryList() {
   const toggleCheck  = (id) => {
     setChecked(prev => {
       const next = prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id];
-      localStorage.setItem(CHECKED_KEY, JSON.stringify(next));
+      localStorage.setItem(checkedKey||CHECKED_KEY, JSON.stringify(next));
       return next;
     });
   };
@@ -383,20 +362,15 @@ export default function GroceryList() {
                         </p>
                         <div style={{display:"flex",gap:"5px",marginTop:"5px",flexWrap:"wrap"}}>
                           {recipe.missingIngredients.slice(0,3).map((ing,i)=>(
-                            <span key={i} style={s.missingTag}>
-                              {typeof ing === "string" ? ing : ing.name}
-                            </span>
+                            <span key={i} style={s.missingTag}>{typeof ing === "string" ? ing : ing.name}</span>
                           ))}
                           {recipe.missingIngredients.length > 3 && (
                             <span style={s.missingTag}>+{recipe.missingIngredients.length-3} more</span>
                           )}
                         </div>
                       </div>
-                      <button
-                        onClick={() => addMissingForRecipe(recipe)}
-                        disabled={allAdded}
-                        style={{...s.addMissingBtn, opacity:allAdded?0.5:1, background:allAdded?"rgba(76,175,61,0.3)":"rgba(255,107,43,0.9)"}}
-                      >
+                      <button onClick={() => addMissingForRecipe(recipe)} disabled={allAdded}
+                        style={{...s.addMissingBtn, opacity:allAdded?0.5:1, background:allAdded?"rgba(76,175,61,0.3)":"rgba(255,107,43,0.9)"}}>
                         {allAdded ? "✅" : "🛒 Add missing"}
                       </button>
                     </div>
@@ -416,7 +390,8 @@ export default function GroceryList() {
             {pantryLowStock.map(item => {
               const inList = groceryList.find(g => g.name.toLowerCase() === (item.name||"").toLowerCase());
               return (
-                <button key={item._id} onClick={() => addFromPantry(item)} disabled={!!inList} style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 14px",background:inList?"rgba(45,122,79,0.1)":"rgba(255,107,43,0.08)",border:`1px solid ${inList?"rgba(45,122,79,0.2)":"rgba(255,107,43,0.2)"}`,borderRadius:"50px",cursor:"pointer",opacity:inList?0.7:1,}}>
+                <button key={item._id} onClick={() => addFromPantry(item)} disabled={!!inList}
+                  style={{display:"flex",alignItems:"center",gap:"6px",padding:"8px 14px",background:inList?"rgba(45,122,79,0.1)":"rgba(255,107,43,0.08)",border:`1px solid ${inList?"rgba(45,122,79,0.2)":"rgba(255,107,43,0.2)"}`,borderRadius:"50px",cursor:"pointer",opacity:inList?0.7:1}}>
                   <span style={{fontSize:"14px"}}>{CAT_META[item.category]?.icon||"📦"}</span>
                   <span style={{fontSize:"12px",fontWeight:"700",color:"#1a1410"}}>{item.name}</span>
                   <span style={{fontSize:"10px",color:"#9c8672"}}>{item.quantity}{item.unit} left</span>
@@ -441,7 +416,8 @@ export default function GroceryList() {
             {SMART_SUGGESTIONS.map(sug => {
               const inList = groceryList.find(i => i.name.toLowerCase() === sug.name.toLowerCase());
               return (
-                <button key={sug.name} onClick={() => quickAdd(sug)} disabled={!!inList} style={{...s.sugItem,background: inList ? "rgba(45,122,79,0.08)" : "white",border: `1.5px solid ${inList?"rgba(45,122,79,0.25)":"rgba(139,94,60,0.1)"}`,opacity: inList ? 0.7 : 1,}}>
+                <button key={sug.name} onClick={() => quickAdd(sug)} disabled={!!inList}
+                  style={{...s.sugItem,background:inList?"rgba(45,122,79,0.08)":"white",border:`1.5px solid ${inList?"rgba(45,122,79,0.25)":"rgba(139,94,60,0.1)"}`,opacity:inList?0.7:1}}>
                   <span style={{fontSize:"18px"}}>{sug.icon}</span>
                   <span style={{fontSize:"11px",fontWeight:"700",color:"#1a1410"}}>{sug.name}</span>
                   <span style={{fontSize:"10px",color:"#9c8672"}}>{sug.qty}{sug.unit}</span>
@@ -459,7 +435,7 @@ export default function GroceryList() {
         <div style={{display:"flex",gap:"8px",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap"}}>
           <div style={{display:"flex",gap:"8px"}}>
             {[["all",`All (${groceryList.length})`],["todo",`To Get (${toGetCount})`],["got",`Got (${checked.length})`]].map(([v,l])=>(
-              <button key={v} onClick={() => setFilter(v)} style={{...s.filterTab,background: filter===v ? "#1a1410" : "white",color: filter===v ? "white" : "#5c4a35",boxShadow: filter===v ? "0 3px 10px rgba(26,20,16,0.2)" : "0 1px 4px rgba(139,94,60,0.1)",}}>{l}</button>
+              <button key={v} onClick={() => setFilter(v)} style={{...s.filterTab,background:filter===v?"#1a1410":"white",color:filter===v?"white":"#5c4a35",boxShadow:filter===v?"0 3px 10px rgba(26,20,16,0.2)":"0 1px 4px rgba(139,94,60,0.1)"}}>{l}</button>
             ))}
           </div>
           <button onClick={() => { if(window.confirm("Clear entire list?")){ saveList([]); saveChecked([]); toast("List cleared","info"); } }} style={s.clearAllBtn}>
@@ -506,35 +482,21 @@ export default function GroceryList() {
                   const isChecked = checked.includes(item.id);
                   return (
                     <div key={item.id} style={{...s.item, opacity:isChecked?0.6:1, background:isChecked?"rgba(45,122,79,0.04)":"white"}}>
-                      {/* Checkbox */}
-                      <button onClick={() => toggleCheck(item.id)} style={{...s.checkCircle,background: isChecked ? c.color : "white",border: `2px solid ${c.color}60`,flexShrink: 0,}}>
+                      <button onClick={() => toggleCheck(item.id)} style={{...s.checkCircle,background:isChecked?c.color:"white",border:`2px solid ${c.color}60`,flexShrink:0}}>
                         {isChecked && <span style={{color:"white",fontSize:"11px",fontWeight:"800"}}>✓</span>}
                       </button>
-                      {/* Icon */}
                       <div style={{...s.catItemIcon,background:`${c.color}12`,color:c.color,flexShrink:0}}>{c.icon}</div>
-                      {/* Info */}
                       <div style={{flex:1,minWidth:0}}>
-                        <span style={{fontSize:"14px",fontWeight:"700",color:"#1a1410",textDecoration:isChecked?"line-through":"none",display:"block"}}>
-                          {item.name}
-                        </span>
+                        <span style={{fontSize:"14px",fontWeight:"700",color:"#1a1410",textDecoration:isChecked?"line-through":"none",display:"block"}}>{item.name}</span>
                         <div style={{display:"flex",gap:"8px",marginTop:"2px",alignItems:"center",flexWrap:"wrap"}}>
                           {item.qty && <span style={{fontSize:"11px",color:"#9c8672"}}>{item.qty} {item.unit}</span>}
                           {item.fromRecipe && <span style={{fontSize:"10px",color:"#7c3aed",fontWeight:"600",background:"rgba(124,58,237,0.08)",borderRadius:"50px",padding:"1px 7px"}}>🍳 {item.fromRecipe}</span>}
                         </div>
                       </div>
-                      {/* Est cost */}
                       {item.est > 0 && <span style={{fontSize:"13px",fontWeight:"700",color:c.color,flexShrink:0}}>₹{item.est}</span>}
-                      {/* Add to Cart */}
                       {!isChecked && (
-                        <button
-                          onClick={() => addItemToCart(item)}
-                          title="Add to Smart Cart"
-                          style={{...s.cartBtn, flexShrink:0}}
-                        >
-                          ⚡
-                        </button>
+                        <button onClick={() => addItemToCart(item)} title="Add to Smart Cart" style={{...s.cartBtn, flexShrink:0}}>⚡</button>
                       )}
-                      {/* Remove */}
                       <button onClick={() => removeItem(item.id)} style={{...s.removeBtn, flexShrink:0}}>✕</button>
                     </div>
                   );
@@ -556,14 +518,9 @@ export default function GroceryList() {
             <form onSubmit={addItem} style={{display:"flex",flexDirection:"column",gap:"14px"}}>
               <div style={{display:"flex",flexDirection:"column",gap:"6px"}}>
                 <label style={s.mLbl}>Item Name *</label>
-                <input
-                  placeholder="e.g. Onions, Rice..."
-                  value={form.name}
+                <input placeholder="e.g. Onions, Rice..." value={form.name}
                   onChange={e => setForm({...form, name:e.target.value, cat:guessCategory(e.target.value)})}
-                  style={s.mInput}
-                  required
-                  autoFocus
-                />
+                  style={s.mInput} required autoFocus/>
               </div>
               <div style={{display:"flex",gap:"12px"}}>
                 <div style={{flex:1,display:"flex",flexDirection:"column",gap:"6px"}}>
@@ -582,22 +539,12 @@ export default function GroceryList() {
               <div style={{display:"flex",gap:"12px"}}>
                 <div style={{flex:1,display:"flex",flexDirection:"column",gap:"6px"}}>
                   <label style={s.mLbl}>Quantity</label>
-                  <input
-                    placeholder="e.g. 2, 500"
-                    value={form.qty}
-                    onChange={e => setForm({...form,qty:e.target.value})}
-                    style={s.mInput}
-                  />
+                  <input placeholder="e.g. 2, 500" value={form.qty} onChange={e => setForm({...form,qty:e.target.value})} style={s.mInput}/>
                 </div>
                 <div style={{flex:1,display:"flex",flexDirection:"column",gap:"6px"}}>
                   <label style={s.mLbl}>Est. Cost (₹)</label>
-                  <input
-                    type="number"
-                    placeholder={`Auto: ~₹${getMarketPrice(form.name)||0}`}
-                    value={form.est}
-                    onChange={e => setForm({...form,est:e.target.value})}
-                    style={s.mInput}
-                  />
+                  <input type="number" placeholder={`Auto: ~₹${getMarketPrice(form.name)||0}`} value={form.est}
+                    onChange={e => setForm({...form,est:e.target.value})} style={s.mInput}/>
                 </div>
               </div>
               <button type="submit" style={{padding:"14px",background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",borderRadius:"14px",fontSize:"15px",fontWeight:"700",cursor:"pointer",boxShadow:"0 6px 20px rgba(255,107,43,0.3)"}}>
@@ -608,9 +555,7 @@ export default function GroceryList() {
         </div>
       )}
 
-      <style>{`
-        input:focus, select:focus { outline:none!important; border-color:#ff6b2b!important; box-shadow:0 0 0 3px rgba(255,107,43,0.1)!important; }
-      `}</style>
+      <style>{`input:focus, select:focus { outline:none!important; border-color:#ff6b2b!important; box-shadow:0 0 0 3px rgba(255,107,43,0.1)!important; }`}</style>
     </div>
   );
 }

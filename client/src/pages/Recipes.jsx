@@ -1,12 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import API from "../api/axios"; // ✅ correct import — no API const needed
 import { useToast } from "../components/Toast";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
-
-
-// ── 50+ Built-in Indian Recipes ──────────────────────────────────────────
+// ── 30 Built-in Indian Recipes ────────────────────────────────────────────
 const BUILTIN_RECIPES = [
   { _id:"r1",  name:"Dal Tadka",           mealType:"lunch",    cookTime:30, servings:4, difficulty:"Easy",   calories:280, ingredients:["toor dal","onion","tomato","garlic","ginger","cumin","turmeric","ghee","coriander"], steps:["Boil dal with turmeric and salt","Make tadka: heat ghee, add cumin, garlic, onion","Cook onion golden, add tomato","Mix tadka into dal, simmer 10 mins","Garnish with coriander"] },
   { _id:"r2",  name:"Butter Chicken",      mealType:"dinner",   cookTime:45, servings:4, difficulty:"Medium", calories:420, ingredients:["chicken","butter","cream","tomato","onion","ginger","garlic","garam masala","kasuri methi"], steps:["Marinate chicken in spices","Grill or pan-fry chicken","Make makhani gravy with butter, onion, tomato","Add chicken to gravy, simmer 15 mins","Add cream and kasuri methi"] },
@@ -63,7 +60,6 @@ const RECIPE_IMAGES = {
   "default":"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=400",
 };
 
-// ── Keyword tags for filtering ────────────────────────────────────────
 const KEYWORD_TAGS = [
   {id:"quick",    label:"⚡ Quick (≤15 min)",   test: r => (r.cookTime||30) <= 15},
   {id:"easy",     label:"😊 Easy",              test: r => r.difficulty === "Easy"},
@@ -83,6 +79,9 @@ const KEYWORD_TAGS = [
 const MEAL_TABS  = ["all","breakfast","lunch","dinner","snack"];
 const MEAL_ICONS = { all:"🍽️", breakfast:"🌅", lunch:"☀️", dinner:"🌙", snack:"🍪" };
 
+// ✅ Must match SmartCart.jsx and GroceryList.jsx exactly
+const SMART_CART_KEY = "homehub_smartcart_v2";
+
 const CAT_MAP = {
   "rice":"Staples & Grains","dal":"Staples & Grains","flour":"Staples & Grains","oats":"Staples & Grains",
   "milk":"Dairy & Eggs","curd":"Dairy & Eggs","paneer":"Dairy & Eggs","butter":"Dairy & Eggs","cream":"Dairy & Eggs","egg":"Dairy & Eggs",
@@ -91,11 +90,11 @@ const CAT_MAP = {
   "ginger":"Vegetables & Fruits","garlic":"Vegetables & Fruits",
 };
 function guessCategory(name="") {
-  const n = name.toLowerCase();
+  const n   = name.toLowerCase();
   const key = Object.keys(CAT_MAP).find(k => n.includes(k));
   return key ? CAT_MAP[key] : "Staples & Grains";
 }
-function ingName(ing) { return typeof ing==="string" ? ing.toLowerCase() : (ing.name||"").toLowerCase(); }
+function ingName(ing)    { return typeof ing==="string" ? ing.toLowerCase() : (ing.name||"").toLowerCase(); }
 function ingDisplay(ing) { return typeof ing==="string" ? ing : `${ing.name}${ing.quantity?` — ${ing.quantity}${ing.unit||""}`:""}`; }
 function getImg(name="") {
   const k = Object.keys(RECIPE_IMAGES).find(k => name.toLowerCase().includes(k.toLowerCase())||k.toLowerCase().includes(name.toLowerCase()));
@@ -111,37 +110,34 @@ function getMissing(recipe, pantryNames) {
 }
 
 export default function Recipes() {
-  const toast = useToast();
+  const toast    = useToast();
   const navigate = useNavigate();
-  const [household, setHousehold] = useState(null);
-  const [pantryItems, setPantryItems] = useState([]);
-  const [recipes, setRecipes] = useState([]);
-  const [mealType, setMealType] = useState("all");
-  const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(null);
-  const [search, setSearch] = useState("");
-  const [activeKeywords, setActiveKeywords] = useState([]);
-  const [activeRecipe, setActiveRecipe] = useState(null);
-  const [missingModal, setMissingModal] = useState(null);
-  const [addingToGrocery, setAddingToGrocery] = useState(false);
-  const [cartFlash, setCartFlash] = useState(""); // recipe name that was just added
-
-  const token = localStorage.getItem("token");
-  const headers = { Authorization: `Bearer ${token}` };
+  const [household,     setHousehold]     = useState(null);
+  const [pantryItems,   setPantryItems]   = useState([]);
+  const [recipes,       setRecipes]       = useState([]);
+  const [mealType,      setMealType]      = useState("all");
+  const [loading,       setLoading]       = useState(true);
+  const [expanded,      setExpanded]      = useState(null);
+  const [search,        setSearch]        = useState("");
+  const [activeKeywords,setActiveKeywords]= useState([]);
+  const [activeRecipe,  setActiveRecipe]  = useState(null);
+  const [missingModal,  setMissingModal]  = useState(null);
+  const [addingToGrocery,setAddingToGrocery]= useState(false);
+  const [cartFlash,     setCartFlash]     = useState("");
 
   useEffect(() => { loadAll(); }, []);
 
   const loadAll = async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/household/myhousehold`, { headers });
+      const res = await API.get("/household/myhousehold");
       if (res.data) {
         setHousehold(res.data);
-        const panRes = await axios.get(`${API}/pantry/${res.data._id}`, { headers }).catch(()=>({data:[]}));
-        setPantryItems(panRes.data||[]);
-        const recRes = await axios.get(`${API}/recipe/suggest/${res.data._id}`, { headers }).catch(()=>({data:[]}));
+        const panRes = await API.get(`/pantry/${res.data._id}`).catch(() => ({data:[]}));
+        setPantryItems(panRes.data || []);
+        const recRes = await API.get(`/recipe/suggest/${res.data._id}`).catch(() => ({data:[]}));
         let recs = (recRes.data||[]).map(r=>({...r,ingredients:Array.isArray(r.ingredients)?r.ingredients:[]}));
-        setRecipes(recs.length>0 ? recs : BUILTIN_RECIPES);
+        setRecipes(recs.length > 0 ? recs : BUILTIN_RECIPES);
       }
     } catch { setRecipes(BUILTIN_RECIPES); }
     setLoading(false);
@@ -149,7 +145,6 @@ export default function Recipes() {
 
   const pantryNames = pantryItems.map(i=>(i.name||"").toLowerCase());
 
-  // Filter recipes
   let filtered = mealType==="all" ? [...recipes] : recipes.filter(r=>r.mealType===mealType);
   if (search.trim()) filtered = filtered.filter(r=>(r.name||"").toLowerCase().includes(search.toLowerCase()));
   if (activeKeywords.length>0) {
@@ -159,11 +154,11 @@ export default function Recipes() {
 
   const readyToCook = recipes.filter(r=>getPantryPct(r,pantryNames)===100);
 
-  // ── Add missing to cart (SmartCart) ──────────────────────────────────
+  // ── Add missing ingredients to Smart Cart ──────────────────────────────
   const addMissingToCart = (recipe) => {
     const missing = getMissing(recipe, pantryNames);
     if (missing.length===0) { toast("You have all ingredients! ✅","success"); return; }
-    const existing = (() => { try { return JSON.parse(localStorage.getItem("homehub_smartcart_v2")||"[]"); } catch { return []; } })();
+    const existing = (() => { try { return JSON.parse(localStorage.getItem(SMART_CART_KEY)||"[]"); } catch { return []; } })();
     const newItems = missing
       .filter(ing=>!existing.some(e=>e.name.toLowerCase()===ingName(ing)))
       .map(ing=>({
@@ -176,15 +171,14 @@ export default function Recipes() {
         fromRecipe: recipe.name,
       }));
     const updated = [...existing, ...newItems];
-    localStorage.setItem("homehub_smartcart_v2", JSON.stringify(updated));
-    // Dispatch storage event so SmartCart page updates live
-    window.dispatchEvent(new Event("storage"));
+    localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
+    window.dispatchEvent(new Event("recipeCartUpdated"));
     setCartFlash(recipe.name);
-    setTimeout(()=>setCartFlash(""), 4000);
+    setTimeout(() => setCartFlash(""), 4000);
     toast(`${newItems.length} items added to Smart Cart! 🛒`, "success");
   };
 
-  // ── Add missing to grocery list ───────────────────────────────────────
+  // ── Add missing to grocery list ──────────────────────────────────────────
   const addMissingToGrocery = (recipe) => {
     const missing = getMissing(recipe, pantryNames);
     if (missing.length===0) { toast("You have all ingredients! ✅","success"); return; }
@@ -204,10 +198,12 @@ export default function Recipes() {
     setAddingToGrocery(false);
   };
 
-  // ── Add to Meal Planner ────────────────────────────────────────────────
+  // ── Add to Meal Planner ───────────────────────────────────────────────────
   const addToMealPlanner = (recipe) => {
-    // Store recipe suggestion in localStorage and navigate
-    localStorage.setItem("homehub_planner_suggestion", JSON.stringify({ name:recipe.name, cal:recipe.calories||0, img:getImg(recipe.name), mealType:recipe.mealType||"lunch", tag:recipe.difficulty||"Easy" }));
+    localStorage.setItem("homehub_planner_suggestion", JSON.stringify({
+      name:recipe.name, cal:recipe.calories||0, img:getImg(recipe.name),
+      mealType:recipe.mealType||"lunch", tag:recipe.difficulty||"Easy",
+    }));
     navigate("/planner");
     toast(`Opening Meal Planner for ${recipe.name}! 📅`, "success");
   };
@@ -256,19 +252,15 @@ export default function Recipes() {
               <div style={{fontSize:12,color:"#166534",opacity:0.8}}>Missing items from "{cartFlash}" are in your cart</div>
             </div>
           </div>
-          <button onClick={()=>navigate("/cart")} style={{padding:"8px 16px",background:"#16a34a",color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-            View Cart →
-          </button>
+          <button onClick={()=>navigate("/cart")} style={{padding:"8px 16px",background:"#16a34a",color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>View Cart →</button>
         </div>
       )}
 
-      {/* ── SMART RECIPE FINDER (replaces AI) ── */}
+      {/* ── SMART RECIPE FINDER ── */}
       <div style={{background:"white",borderRadius:20,padding:"20px 24px",boxShadow:"0 4px 20px rgba(139,94,60,0.08)"}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:14,flexWrap:"wrap",gap:8}}>
           <div>
-            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,color:"#1a1410",margin:"0 0 4px"}}>
-              🔍 Smart Recipe Finder
-            </h3>
+            <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,color:"#1a1410",margin:"0 0 4px"}}>🔍 Smart Recipe Finder</h3>
             <p style={{fontSize:12,color:"#9c8672",margin:0}}>Click tags to filter · Search by name · Browse {recipes.length} Indian recipes</p>
           </div>
           {activeKeywords.length>0 && (
@@ -292,7 +284,6 @@ export default function Recipes() {
             );
           })}
         </div>
-        {/* Active filter result count */}
         {activeKeywords.length>0 && (
           <div style={{fontSize:12,color:"#ff6b2b",fontWeight:700}}>
             Showing {filtered.length} recipe{filtered.length!==1?"s":""} matching your filters
@@ -303,9 +294,7 @@ export default function Recipes() {
       {/* ── READY TO COOK ── */}
       {readyToCook.length > 0 && (
         <div>
-          <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,color:"#1a1410",margin:"0 0 14px"}}>
-            ✅ Ready to Cook — You Have All Ingredients!
-          </h3>
+          <h3 style={{fontFamily:"'Playfair Display',serif",fontSize:16,fontWeight:800,color:"#1a1410",margin:"0 0 14px"}}>✅ Ready to Cook — You Have All Ingredients!</h3>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:16}}>
             {readyToCook.map(r=>(
               <div key={r._id||r.name} style={{position:"relative",borderRadius:20,overflow:"hidden",height:180,boxShadow:"0 8px 28px rgba(0,0,0,0.15)",cursor:"pointer"}} onClick={()=>setActiveRecipe(r)}>
@@ -351,9 +340,7 @@ export default function Recipes() {
             <span style={{fontSize:48}}>👨‍🍳</span>
             <p style={{fontSize:18,fontWeight:800,color:"white",marginBottom:6}}>No recipes found</p>
             <p style={{fontSize:13,color:"rgba(255,255,255,0.65)"}}>Try different filters or search terms</p>
-            <button onClick={()=>{setActiveKeywords([]);setSearch("");setMealType("all");}} style={{marginTop:8,padding:"8px 20px",background:"rgba(255,107,43,0.9)",color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>
-              Reset Filters
-            </button>
+            <button onClick={()=>{setActiveKeywords([]);setSearch("");setMealType("all");}} style={{marginTop:8,padding:"8px 20px",background:"rgba(255,107,43,0.9)",color:"white",border:"none",borderRadius:10,fontSize:13,fontWeight:700,cursor:"pointer"}}>Reset Filters</button>
           </div>
         </div>
       ) : (
@@ -383,7 +370,6 @@ export default function Recipes() {
                 {/* Body */}
                 <div style={{padding:16,display:"flex",flexDirection:"column",gap:10,flex:1}}>
                   <h3 style={{fontSize:16,fontWeight:800,color:"#1a1410",margin:0,fontFamily:"'Playfair Display',serif"}}>{r.name}</h3>
-
                   <div style={{display:"flex",gap:12}}>
                     {[{i:"🔥",v:r.calories||0,l:"cal"},{i:"⏱",v:`${r.cookTime||30}m`,l:""},{i:"👥",v:r.servings||4,l:"srv"},{i:"📊",v:r.difficulty||"Easy",l:""}].map(({i,v,l})=>(
                       <div key={i} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
@@ -392,7 +378,6 @@ export default function Recipes() {
                       </div>
                     ))}
                   </div>
-
                   <div style={{display:"flex",alignItems:"center",gap:8}}>
                     <span style={{fontSize:11,color:"#9c8672",fontWeight:600,whiteSpace:"nowrap"}}>Pantry</span>
                     <div style={{flex:1,height:6,background:"rgba(139,94,60,0.1)",borderRadius:3,overflow:"hidden"}}>
@@ -403,15 +388,11 @@ export default function Recipes() {
 
                   {/* Action buttons */}
                   <div style={{display:"flex",gap:8,marginTop:"auto"}}>
-                    <button onClick={()=>setActiveRecipe(r)} style={{flex:1,padding:"8px 0",background:"rgba(139,94,60,0.06)",border:"1px solid rgba(139,94,60,0.12)",borderRadius:10,color:"#5c4a35",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                      📖 View
-                    </button>
+                    <button onClick={()=>setActiveRecipe(r)} style={{flex:1,padding:"8px 0",background:"rgba(139,94,60,0.06)",border:"1px solid rgba(139,94,60,0.12)",borderRadius:10,color:"#5c4a35",fontSize:12,fontWeight:700,cursor:"pointer"}}>📖 View</button>
                     <button onClick={()=>addMissingToCart(r)} style={{flex:1,padding:"8px 0",background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",border:"none",borderRadius:10,color:"white",fontSize:12,fontWeight:700,cursor:"pointer",boxShadow:"0 3px 10px rgba(255,107,43,0.25)"}}>
                       🛒 {missing.length>0?`Cart (${missing.length})`:"Cart"}
                     </button>
-                    <button onClick={()=>addToMealPlanner(r)} style={{padding:"8px 10px",background:"rgba(21,101,192,0.1)",border:"1px solid rgba(21,101,192,0.2)",borderRadius:10,color:"#1565c0",fontSize:12,fontWeight:700,cursor:"pointer"}}>
-                      📅
-                    </button>
+                    <button onClick={()=>addToMealPlanner(r)} style={{padding:"8px 10px",background:"rgba(21,101,192,0.1)",border:"1px solid rgba(21,101,192,0.2)",borderRadius:10,color:"#1565c0",fontSize:12,fontWeight:700,cursor:"pointer"}}>📅</button>
                   </div>
 
                   <button onClick={()=>setExpanded(isOpen?null:(r._id||r.name))} style={{padding:"6px 0",background:"none",border:"none",cursor:"pointer",fontSize:12,color:"#ff6b2b",fontWeight:700,textAlign:"left"}}>
@@ -420,7 +401,6 @@ export default function Recipes() {
 
                   {isOpen && (
                     <div style={{display:"flex",flexDirection:"column",gap:14}}>
-                      {/* Ingredients */}
                       {(r.ingredients||[]).length>0 && (
                         <div>
                           <div style={{fontSize:12,fontWeight:800,color:"#1a1410",marginBottom:8,textTransform:"uppercase",letterSpacing:"0.05em"}}>🧾 Ingredients</div>
@@ -447,8 +427,6 @@ export default function Recipes() {
                           )}
                         </div>
                       )}
-
-                      {/* Steps */}
                       {(r.steps||[]).length>0 && (
                         <div style={{background:"rgba(255,107,43,0.03)",borderRadius:10,padding:"12px 14px"}}>
                           <div style={{fontSize:12,fontWeight:800,color:"#1a1410",marginBottom:12,textTransform:"uppercase",letterSpacing:"0.05em"}}>👨‍🍳 How to Cook</div>
@@ -538,15 +516,9 @@ export default function Recipes() {
                 ))}
               </div>
               <div style={{display:"flex",gap:12,justifyContent:"flex-end",flexWrap:"wrap"}}>
-                <button onClick={()=>{addToMealPlanner(activeRecipe);setActiveRecipe(null);}} style={{padding:"10px 16px",borderRadius:12,background:"rgba(21,101,192,0.1)",color:"#1565c0",border:"1px solid rgba(21,101,192,0.2)",cursor:"pointer",fontSize:13,fontWeight:700}}>
-                  📅 Add to Planner
-                </button>
-                <button onClick={()=>{addMissingToCart(activeRecipe);setActiveRecipe(null);}} style={{padding:"10px 16px",borderRadius:12,background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,boxShadow:"0 4px 14px rgba(255,107,43,0.3)"}}>
-                  🛒 Add Missing to Cart
-                </button>
-                <button onClick={()=>setActiveRecipe(null)} style={{padding:"10px 16px",borderRadius:12,background:"rgba(139,94,60,0.08)",color:"#5c4a35",border:"1px solid rgba(139,94,60,0.15)",cursor:"pointer",fontSize:13,fontWeight:700}}>
-                  Close
-                </button>
+                <button onClick={()=>{addToMealPlanner(activeRecipe);setActiveRecipe(null);}} style={{padding:"10px 16px",borderRadius:12,background:"rgba(21,101,192,0.1)",color:"#1565c0",border:"1px solid rgba(21,101,192,0.2)",cursor:"pointer",fontSize:13,fontWeight:700}}>📅 Add to Planner</button>
+                <button onClick={()=>{addMissingToCart(activeRecipe);setActiveRecipe(null);}} style={{padding:"10px 16px",borderRadius:12,background:"linear-gradient(135deg,#ff6b2b,#ff8c54)",color:"white",border:"none",cursor:"pointer",fontSize:13,fontWeight:700,boxShadow:"0 4px 14px rgba(255,107,43,0.3)"}}>🛒 Add Missing to Cart</button>
+                <button onClick={()=>setActiveRecipe(null)} style={{padding:"10px 16px",borderRadius:12,background:"rgba(139,94,60,0.08)",color:"#5c4a35",border:"1px solid rgba(139,94,60,0.15)",cursor:"pointer",fontSize:13,fontWeight:700}}>Close</button>
               </div>
             </div>
           </div>
