@@ -19,6 +19,7 @@ import SmartCart from "./pages/SmartCart";
 import AdminPanel from "./pages/AdminPanel";
 import JoinHousehold from "./pages/JoinHousehold";
 import NutritionDietPlan from "./pages/NutritionDietPlan";
+import NotificationProvider from "./NotificationSystem";
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
