@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { NotificationBell } from "./NotificationSystem";
+import NotificationBell from "./NotificationSystem";
 
 const FOOD_BG = "https://images.unsplash.com/photo-1490818387583-1baba5e638af?w=400&q=70";
 
