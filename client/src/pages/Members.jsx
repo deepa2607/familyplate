@@ -63,17 +63,25 @@ export default function Members() {
       const hhRes = await API.get("/household/myhousehold");
       if (hhRes.data) {
         setHousehold(hhRes.data);
-        const [mRes, pRes] = await Promise.all([
-          API.get(`/household/members/${hhRes.data._id}`),
-          API.get(`/purchase/${hhRes.data._id}`).catch(() => ({ data:[] })),
-        ]);
-        const raw = mRes.data || [];
-        setMembers(raw.map(m => typeof m === "string" ? { _id:m, name:m, email:"", role:"member" } : m));
+
+        // Try dedicated members endpoint, fall back to household.members array
+        const mRes = await API.get(`/household/members/${hhRes.data._id}`).catch(() => null);
+        const pRes = await API.get(`/purchase/${hhRes.data._id}`).catch(() => ({ data:[] }));
+
+        let rawMembers = mRes?.data || [];
+        // If endpoint failed or returned empty, use members from household object
+        if (!rawMembers || rawMembers.length === 0) {
+          rawMembers = hhRes.data.members || [];
+        }
+        setMembers(rawMembers.map(m =>
+          typeof m === "string" ? { _id:m, name:m, email:"", role:"member" } :
+          (m.name ? m : { _id:m._id||m, name:m.name||"Member", email:m.email||"", role:m.role||"member" })
+        ));
         setPurchases(pRes.data || []);
       }
     } catch(e) {
-      console.error(e);
-      toast("Could not load members", "error");
+      console.error("Members load:", e);
+      // Don't show error toast - silently degrade
     }
     setLoading(false);
   };

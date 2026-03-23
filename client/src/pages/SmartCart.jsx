@@ -68,6 +68,41 @@ const CATALOG = {
       {id:"bv1",name:"Orange Juice",  unit:"1 L",   price:99, img:"https://images.pexels.com/photos/96974/pexels-photo-96974.jpeg?auto=compress&w=200",badge:"Cold Pressed"},
       {id:"bv2",name:"Green Tea",     unit:"25 bags",price:120,img:"https://images.pexels.com/photos/1638280/pexels-photo-1638280.jpeg?auto=compress&w=200"},
       {id:"bv3",name:"Coconut Water", unit:"200 ml", price:45, img:"https://images.pexels.com/photos/1313140/pexels-photo-1313140.jpeg?auto=compress&w=200"},
+      {id:"bv4",name:"Lemon Juice",   unit:"500 ml", price:55, img:"https://images.pexels.com/photos/96974/pexels-photo-96974.jpeg?auto=compress&w=200"},
+      {id:"bv5",name:"Mango Juice",   unit:"1 L",   price:89, img:"https://images.pexels.com/photos/96974/pexels-photo-96974.jpeg?auto=compress&w=200",badge:"Tropicana"},
+    ],
+  },
+  "Spices & Oils": {
+    color:"#b45309", icon:"🌶️",
+    items:[
+      {id:"sp1",name:"Turmeric",      unit:"100 g",  price:22, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Organic"},
+      {id:"sp2",name:"Red Chilli",    unit:"100 g",  price:35, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"sp3",name:"Cumin Seeds",   unit:"100 g",  price:28, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"sp4",name:"Garam Masala",  unit:"100 g",  price:45, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"MDH"},
+      {id:"sp5",name:"Sunflower Oil", unit:"1 L",    price:135,img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"sp6",name:"Mustard Oil",   unit:"1 L",    price:120,img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Kachi Ghani"},
+      {id:"sp7",name:"Salt",          unit:"1 kg",   price:20, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"sp8",name:"Sugar",         unit:"1 kg",   price:45, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+    ],
+  },
+  "Cleaning & Home": {
+    color:"#0369a1", icon:"🧹",
+    items:[
+      {id:"cl1",name:"Vim Bar",       unit:"200 g",  price:18, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"cl2",name:"Detergent",     unit:"500 g",  price:75, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Surf Excel"},
+      {id:"cl3",name:"Dish Soap",     unit:"750 ml", price:55, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"cl4",name:"Floor Cleaner", unit:"1 L",    price:85, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"cl5",name:"Toilet Cleaner",unit:"500 ml", price:45, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Harpic"},
+    ],
+  },
+  "Personal Care": {
+    color:"#9333ea", icon:"🧴",
+    items:[
+      {id:"pc1",name:"Shampoo",       unit:"200 ml", price:120,img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Head & Shoulders"},
+      {id:"pc2",name:"Soap Bar",      unit:"100 g",  price:35, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"pc3",name:"Toothpaste",    unit:"150 g",  price:65, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200",badge:"Colgate"},
+      {id:"pc4",name:"Hand Wash",     unit:"250 ml", price:55, img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
+      {id:"pc5",name:"Tissue Paper",  unit:"100 pulls",price:45,img:"https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&w=200"},
     ],
   },
 };
@@ -160,19 +195,7 @@ function ProductGrid({items, cart, addItem, removeItem}) {
   );
 }
 
-// Per-user cart key — each user gets their own cart
-function getUserCartKey() {
-  try {
-    const u = JSON.parse(localStorage.getItem("user") || "{}");
-    const uid = u?._id || u?.user?._id || u?.id || u?.email || "guest";
-    return `homehub_smartcart_v2_${uid}`;
-  } catch {
-    return "homehub_smartcart_v2_guest";
-  }
-}
-
 export default function SmartCart() {
-
   const toast = useToast();
 
   const [household,    setHousehold]    = useState(null);
@@ -194,6 +217,8 @@ export default function SmartCart() {
   const [lastRef,      setLastRef]      = useState(null);
   const [loading,      setLoading]      = useState(true);
   const [deliverySlot, setDeliverySlot] = useState("now");
+  const [purchases,    setPurchases]    = useState([]);
+  const [showHistory,  setShowHistory]  = useState(false);
 
   const token   = localStorage.getItem("token");
   const headers = { Authorization: `Bearer ${token}` };
@@ -201,7 +226,7 @@ export default function SmartCart() {
   // ── Load recipe items from localStorage ──────────────────────────────
   const loadRecipeItems = useCallback(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
+      const stored = JSON.parse(localStorage.getItem("homehub_smartcart_v2") || "[]");
       setRecipeItems(Array.isArray(stored) ? stored : []);
     } catch {
       setRecipeItems([]);
@@ -213,11 +238,16 @@ export default function SmartCart() {
     if (userStr) { try { setCurrentUser(JSON.parse(userStr)); } catch {} }
 
     axios.get(`${API}/household/myhousehold`, { headers })
-      .then(r => {
+      .then(async r => {
         setHousehold(r.data);
         const m = r.data?.members || [];
         setMembers(m);
         if (m.length > 0) setPayerId(m[0]._id);
+        // Load purchase history
+        try {
+          const pRes = await axios.get(`${API}/purchase/${r.data._id}`, { headers });
+          setPurchases(pRes.data || []);
+        } catch {}
       })
       .catch(() => {})
       .finally(() => setLoading(false));
@@ -234,7 +264,7 @@ export default function SmartCart() {
   const removeRecipeItem = (id) => {
     const updated = recipeItems.filter(item => item.id !== id);
     setRecipeItems(updated);
-    localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
+    localStorage.setItem("homehub_smartcart_v2", JSON.stringify(updated));
     toast("Item removed", "info");
   };
 
@@ -247,12 +277,12 @@ export default function SmartCart() {
       return item;
     }).filter(Boolean);
     setRecipeItems(updated);
-    localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
+    localStorage.setItem("homehub_smartcart_v2", JSON.stringify(updated));
   };
 
   const clearRecipeItems = () => {
     setRecipeItems([]);
-    localStorage.removeItem(SMART_CART_KEY);
+    localStorage.removeItem("homehub_smartcart_v2");
   };
 
   // ── Catalog cart calculations ─────────────────────────────────────────
@@ -319,23 +349,48 @@ export default function SmartCart() {
     if (!ok) { toast("Razorpay failed to load","error"); setPayLoading(false); return; }
     setPayLoading(false);
     new window.Razorpay({
-      key: RAZORPAY_KEY, amount: Math.round(finalTotal * 100), currency: "INR",
-      name: "HomeHub Smart Kitchen", description: `Grocery — ${cartCount} items`,
-      handler: async r => { toast(`✅ Paid! Ref: ${r.razorpay_payment_id.slice(-8)}`,"success"); await savePurchase(r.razorpay_payment_id, "razorpay"); },
-      prefill: { name: getPayerName() }, theme: { color: "#ff6b2b" },
-      modal: { ondismiss: () => toast("Payment cancelled","info") },
+      key: RAZORPAY_KEY,
+      amount: Math.round(finalTotal * 100),
+      currency: "INR",
+      name: "HomeHub Smart Kitchen",
+      description: `Grocery — ${cartCount} items`,
+      handler: async r => {
+        toast(`✅ Paid! Ref: ${r.razorpay_payment_id.slice(-8)}`, "success");
+        await savePurchase(r.razorpay_payment_id, "razorpay");
+      },
+      prefill: { name: getPayerName(), contact: "9999999999", email: "test@homehub.com" },
+      theme: { color: "#ff6b2b" },
+      modal: { ondismiss: () => toast("Payment cancelled", "info") },
+      config: {
+        display: {
+          hide: [{ method: "card", issuer: "international" }],
+          preferences: { show_default_blocks: true },
+        },
+      },
     }).open();
+  };
+
+  // TEST MODE: Simulate payment without Razorpay (for testing only)
+  const handleTestPayment = async () => {
+    if (cartCount === 0) { toast("Add items to cart first", "warning"); return; }
+    if (!window.confirm(`Simulate payment of ${INR(finalTotal)}? (Test Mode)`)) return;
+    const fakeRef = "TEST-" + Date.now().toString(36).toUpperCase();
+    toast(`✅ Test payment successful! Ref: ${fakeRef}`, "success");
+    await savePurchase(fakeRef, "test");
   };
 
   const handlePay = () => {
     if (cartCount === 0) { toast("Add items to cart first","warning"); return; }
     if (payMethod === "razorpay") handleRazorpay();
+    else if (payMethod === "test") handleTestPayment();
     else if (payMethod === "gpay") {
       window.location.href = `upi://pay?pa=${UPI_ID}&pn=HomeHub&am=${finalTotal}&cu=INR&mode=04`;
       setTimeout(() => { if(window.confirm(`Did you complete the GPay payment of ${INR(finalTotal)}?`)) savePurchase("GPAY-"+Date.now(),"gpay"); }, 3000);
     } else if (payMethod === "scanner") setShowQR(true);
     else if (payMethod === "cod") {
       if (window.confirm(`Place order for ${INR(finalTotal)}? Pay on delivery.`)) savePurchase("COD-"+Date.now(),"cod");
+    } else if (payMethod === "test") {
+      handleTestPayment();
     }
   };
 
