@@ -3,8 +3,7 @@ import { useEffect, useState, useCallback } from "react";
 import axios from "axios";
 import { useToast } from "../components/Toast";
 
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
-
+const API          = "http://localhost:5000/api";
 const RAZORPAY_KEY = "rzp_test_STtEjhkKyDQlmf";
 const UPI_ID       = "homehub@okaxis";
 const INR          = n => `₹${(Number(n)||0).toLocaleString("en-IN")}`;
@@ -173,7 +172,6 @@ function getUserCartKey() {
 }
 
 export default function SmartCart() {
-  const CART_KEY = getUserCartKey();
 
   const toast = useToast();
 
@@ -203,7 +201,7 @@ export default function SmartCart() {
   // ── Load recipe items from localStorage ──────────────────────────────
   const loadRecipeItems = useCallback(() => {
     try {
-      const stored = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      const stored = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
       setRecipeItems(Array.isArray(stored) ? stored : []);
     } catch {
       setRecipeItems([]);
@@ -236,7 +234,7 @@ export default function SmartCart() {
   const removeRecipeItem = (id) => {
     const updated = recipeItems.filter(item => item.id !== id);
     setRecipeItems(updated);
-    localStorage.setItem(CART_KEY, JSON.stringify(updated));
+    localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
     toast("Item removed", "info");
   };
 
@@ -249,12 +247,12 @@ export default function SmartCart() {
       return item;
     }).filter(Boolean);
     setRecipeItems(updated);
-    localStorage.setItem(CART_KEY, JSON.stringify(updated));
+    localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
   };
 
   const clearRecipeItems = () => {
     setRecipeItems([]);
-    localStorage.removeItem(CART_KEY);
+    localStorage.removeItem(SMART_CART_KEY);
   };
 
   // ── Catalog cart calculations ─────────────────────────────────────────

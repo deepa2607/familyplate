@@ -12,18 +12,8 @@ import { useToast } from "../components/Toast";
 const GROCERY_KEY = "groceryList";
 const CHECKED_KEY = "groceryChecked";
 
-// ── PER-USER CART KEY — must match SmartCart.jsx exactly ─────────────────
-// This was the bug: GroceryList used "homehub_smartcart_v2" (static)
-// but SmartCart used "homehub_smartcart_v2_userId" (per-user) → they never matched
-function getUserCartKey() {
-  try {
-    const u   = JSON.parse(localStorage.getItem("user") || "{}");
-    const uid = u?._id || u?.user?._id || u?.id || u?.email || "guest";
-    return `homehub_smartcart_v2_${uid}`;
-  } catch {
-    return "homehub_smartcart_v2_guest";
-  }
-}
+// Cart key — matches SmartCart.jsx
+const SMART_CART_KEY = "homehub_smartcart_v2";
 
 const CAT_META = {
   Vegetables: { icon: "🥦", color: "#2d7a4f", img: "https://images.unsplash.com/photo-1540420773420-3366772f4999?w=300&q=80" },
@@ -245,8 +235,8 @@ export default function GroceryList() {
   // ── FIXED: Add single grocery item to Smart Cart (per-user key) ────────
   const addItemToCart = (item) => {
     try {
-      const CART_KEY  = getUserCartKey();                                   // ← FIXED
-      const cartItems = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      
+      const cartItems = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
 
       if (cartItems.find(c => c.name.toLowerCase() === item.name.toLowerCase())) {
         toast(`${item.name} already in cart`, "info");
@@ -262,7 +252,7 @@ export default function GroceryList() {
       const newItem = { id: Date.now(), name: item.name, cat: item.cat, qty: 1, unit: unitLabel, price, icon: catIcon };
       const updated = [...cartItems, newItem];
 
-      localStorage.setItem(CART_KEY, JSON.stringify(updated));            // ← FIXED
+      localStorage.setItem(SMART_CART_KEY, JSON.stringify(updated));
       window.dispatchEvent(new Event("storage"));
       toast(`${item.name} added to Smart Cart! ⚡`, "success");
     } catch (e) {
@@ -273,8 +263,8 @@ export default function GroceryList() {
   // ── FIXED: Add ALL grocery items to Smart Cart (per-user key) ──────────
   const addAllToCart = () => {
     try {
-      const CART_KEY  = getUserCartKey();                                   // ← FIXED
-      const cartItems = JSON.parse(localStorage.getItem(CART_KEY) || "[]");
+      
+      const cartItems = JSON.parse(localStorage.getItem(SMART_CART_KEY) || "[]");
       let   added     = 0;
       const newCart   = [...cartItems];
 
@@ -296,7 +286,7 @@ export default function GroceryList() {
         }
       });
 
-      localStorage.setItem(CART_KEY, JSON.stringify(newCart));            // ← FIXED
+      localStorage.setItem(SMART_CART_KEY, JSON.stringify(newCart));
       window.dispatchEvent(new Event("storage"));
 
       if (added > 0) toast(`${added} items sent to Smart Cart! ⚡`, "success");
