@@ -14,6 +14,9 @@ const userSchema = new mongoose.Schema({
   household: { type: mongoose.Schema.Types.ObjectId, ref: "Household", default: null },
   phone:     { type: String, default: "" },
   avatar:    { type: String, default: "" },
+  status: { type: String, default: 'active', enum: ['pending', 'active'] },
+
+
   securityQuestions: [securityQuestionSchema],
 }, { timestamps: true });
 
