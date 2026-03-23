@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
-const API = (import.meta.env.VITE_API_URL || "http://localhost:5000") + "/api";
 
+const API = "http://localhost:5000/api";
 
 const FOOD_EMOJIS = ["🍕","🍔","🍜","🍛","🥘","🍲","🥗","🍣","🧆","🫕","🍱","🥙","🌮","🍝","🥩","🧁","🍰","🍩","☕","🫖","🥞","🍳","🍡","🍧","🥮","🍿"];
 const PARTICLES = Array.from({ length: 28 }, (_, i) => ({
@@ -56,7 +56,12 @@ export default function Login() {
       const userData = res.data.user || res.data;
       localStorage.setItem("token", res.data.token);
       localStorage.setItem("user", JSON.stringify(userData));
-      navigate("/dashboard");
+      // Redirect admin to admin panel, everyone else to dashboard
+      if (userData?.role === "admin") {
+        navigate("/admin");
+      } else {
+        navigate("/dashboard");
+      }
     } catch (err) {
       setError(err.response?.data?.message || "Invalid email or password");
     }
