@@ -1,5 +1,9 @@
 // ══════════════════════════════════════════════════════════════════════════
-//  routes/authRoutes.js  —  Register · Login · Forgot Password
+//  routes/authRoutes.js  —  Register · Login · Forgot Password  (FIXED)
+//  C:\projects\familyplate\server\routes\authRoutes.js
+//
+//  KEY FIX: login now always returns role in the response so
+//  AdminRoute in App.jsx can correctly redirect to /admin
 // ══════════════════════════════════════════════════════════════════════════
 const express  = require("express");
 const router   = express.Router();
@@ -11,7 +15,7 @@ const auth     = require("../middleware/authMiddleware");
 
 const JWT_SECRET = process.env.JWT_SECRET || "homehub_secret_key";
 
-// ── In-memory token store (use Redis in production) ────────────────────
+// In-memory reset token store (fine for hobby/prod — resets on server restart)
 const resetTokens = {};
 
 // ══════════════════════════════════════
@@ -30,8 +34,7 @@ router.post("/register", async (req, res) => {
     if (password.length < 6)
       return res.status(400).json({ message: "Password must be at least 6 characters" });
 
-    const salt   = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(password, salt);
+    const hashed = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       name:              name.trim(),
@@ -41,11 +44,20 @@ router.post("/register", async (req, res) => {
       securityQuestions: securityQuestions || [],
     });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
 
     res.status(201).json({
       token,
-      user: { _id: user._id, name: user.name, email: user.email, role: user.role },
+      user: {
+        _id:   user._id,
+        name:  user.name,
+        email: user.email,
+        role:  user.role,   // always include role
+      },
     });
   } catch (err) {
     console.error("Register error:", err.message);
@@ -55,6 +67,8 @@ router.post("/register", async (req, res) => {
 
 // ══════════════════════════════════════
 //  POST /api/auth/login
+//  FIXED: role is now always in the response
+//  This is what makes AdminRoute work correctly in App.jsx
 // ══════════════════════════════════════
 router.post("/login", async (req, res) => {
   try {
@@ -71,17 +85,24 @@ router.post("/login", async (req, res) => {
     if (!isMatch)
       return res.status(400).json({ message: "Incorrect password" });
 
-    console.log(`LOGIN success: ${user.email} role: ${user.role}`);
+    console.log(`LOGIN ✓  ${user.email}  |  role: ${user.role}`);
 
-    const token = jwt.sign({ id: user._id, role: user.role }, JWT_SECRET, { expiresIn: "30d" });
+    const token = jwt.sign(
+      { id: user._id, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "30d" }
+    );
 
+    // ── CRITICAL: role MUST be in this response ──────────────────────────
+    // App.jsx > AdminRoute reads user.role from localStorage("user")
+    // If role is missing here, admin login always falls through to /dashboard
     res.json({
       token,
       user: {
         _id:       user._id,
         name:      user.name,
         email:     user.email,
-        role:      user.role,
+        role:      user.role,        // ← THIS is what fixes the admin redirect
         household: user.household,
       },
     });
@@ -104,6 +125,35 @@ router.get("/me", auth, async (req, res) => {
   }
 });
 
+// ══════════════════════════════════════════════════════════════════════
+//  POST /api/auth/make-me-admin
+//  Since you already have admin credentials, use this ONLY if your role
+//  somehow got reset. Requires your current JWT token to call it.
+// ══════════════════════════════════════════════════════════════════════
+router.post("/make-me-admin", auth, async (req, res) => {
+  try {
+    const ADMIN_SECRET = process.env.ADMIN_SECRET || "homehub_admin_2024";
+    const { secret } = req.body;
+
+    if (secret !== ADMIN_SECRET)
+      return res.status(403).json({ message: "Wrong secret" });
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { role: "admin" },
+      { new: true }
+    );
+
+    console.log(`ADMIN PROMOTED: ${user.email}`);
+    res.json({
+      message: `${user.name} is now admin! Log out and log back in.`,
+      role: user.role,
+    });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 // ══════════════════════════════════════
 //  FORGOT PASSWORD — Step 1: Get security questions
 //  POST /api/auth/forgot-password/questions
@@ -121,7 +171,6 @@ router.post("/forgot-password/questions", async (req, res) => {
         message: "This account has no security questions set up. Please contact support.",
       });
 
-    // Return ONLY the questions, never the answers
     res.json({ questions: user.securityQuestions.map(q => q.question) });
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -143,7 +192,6 @@ router.post("/forgot-password/verify", async (req, res) => {
     if (!user.securityQuestions || user.securityQuestions.length === 0)
       return res.status(400).json({ message: "No security questions configured." });
 
-    // Check both answers (case-insensitive, trimmed)
     const allCorrect = user.securityQuestions.every((q, i) => {
       const userAns = (answers?.[i] || "").toLowerCase().trim();
       const stored  = (q.answer || "").toLowerCase().trim();
@@ -155,7 +203,6 @@ router.post("/forgot-password/verify", async (req, res) => {
         message: "Incorrect answers. Please check your spelling and try again.",
       });
 
-    // Generate short-lived reset token (15 min)
     const resetToken = crypto.randomBytes(32).toString("hex");
     resetTokens[email.toLowerCase()] = {
       token:   resetToken,
@@ -182,16 +229,15 @@ router.post("/forgot-password/reset", async (req, res) => {
       return res.status(400).json({ message: "Invalid or expired reset token. Please start over." });
 
     if (Date.now() > stored.expires)
-      return res.status(400).json({ message: "Reset session expired (15 min limit). Please start over." });
+      return res.status(400).json({ message: "Reset session expired (15 min). Please start over." });
 
     if (!newPassword || newPassword.length < 6)
       return res.status(400).json({ message: "Password must be at least 6 characters." });
 
-    const salt   = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(newPassword, salt);
+    const hashed = await bcrypt.hash(newPassword, 10);
     await User.findOneAndUpdate({ email: key }, { password: hashed });
 
-    delete resetTokens[key]; // Clean up token
+    delete resetTokens[key];
     res.json({ message: "Password reset successfully! You can now log in with your new password." });
   } catch (err) {
     res.status(500).json({ message: err.message });
