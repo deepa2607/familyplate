@@ -179,7 +179,7 @@ export default function Analytics() {
         setHH(hh);
         const [mRes, pRes] = await Promise.all([
           axios.get(`${API}/household/members/${hh._id}`, { headers }),
-          axios.get(`${API}/purchase/${hh._id}`, { headers }),
+          axios.get(`${API}/purchase/household/${hh._id}`, { headers }),
         ]);
         setMembers(mRes.data || []);
         setPurchases((pRes.data || []).sort((a, b) => new Date(a.date || a.createdAt) - new Date(b.date || b.createdAt)));

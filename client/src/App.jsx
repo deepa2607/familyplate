@@ -18,6 +18,7 @@ import SmartCart from "./pages/SmartCart";
 import AdminPanel from "./pages/AdminPanel";
 import JoinHousehold from "./pages/JoinHousehold";
 import NutritionDietPlan from "./pages/NutritionDietPlan";
+import CartHistory from "./pages/CartHistory";
 
 function PrivateRoute({ children }) {
   const token = localStorage.getItem("token");
@@ -54,6 +55,7 @@ function App() {
         <Route path="/recipes" element={<PrivateRoute><Layout><Recipes /></Layout></PrivateRoute>} />
         <Route path="/grocery" element={<PrivateRoute><Layout><GroceryList /></Layout></PrivateRoute>} />
         <Route path="/cart" element={<PrivateRoute><Layout><SmartCart /></Layout></PrivateRoute>} />
+        <Route path="/cart-history" element={<PrivateRoute><Layout><CartHistory /></Layout></PrivateRoute>} />
         <Route path="/chat" element={<PrivateRoute><Layout><AIChat /></Layout></PrivateRoute>} />
         <Route path="/analytics" element={<PrivateRoute><Layout><Analytics /></Layout></PrivateRoute>} />
         <Route path="/planner" element={<PrivateRoute><Layout><MealPlanner /></Layout></PrivateRoute>} />
@@ -61,6 +63,7 @@ function App() {
         <Route path="/settings" element={<PrivateRoute><Layout><Settings /></Layout></PrivateRoute>} />
         <Route path="/admin" element={<AdminRoute><AdminPanel /></AdminRoute>} />
         <Route path="/join" element={<JoinHousehold />} />
+        
       </Routes>
     </BrowserRouter>
   );

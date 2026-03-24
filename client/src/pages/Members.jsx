@@ -137,7 +137,8 @@ export default function Members() {
 
   const baseUrl  = window.location.origin;
   const joinLink = `${baseUrl}/join?code=${household?.inviteCode||""}`;
-  const shareMsg = `🏠 Join my household on HomeHub!\n\nCode: *${household?.inviteCode}*\nLink: ${joinLink}`;
+  // WhatsApp requires URL-encoded message with the full join link
+  const shareMsg = `🏠 Join my household on HomeHub!\n\nInvite code: *${household?.inviteCode}*\n\nTap the link to join directly:\n${joinLink}`;
 
   if (loading) return (
     <div style={{ display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"60vh",gap:16 }}>
@@ -448,7 +449,11 @@ export default function Members() {
           </div>
           <div style={{ display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:8 }}>
             {[
-              {label:"WhatsApp",icon:"📱",bg:"#25D366",action:()=>window.open(`https://wa.me/?text=${encodeURIComponent(shareMsg)}`,"_blank")},
+              {label:"WhatsApp",icon:"📱",bg:"#25D366",action:()=>{
+          // wa.me format automatically makes the link clickable in WhatsApp
+          const msg = `🏠 Join my HomeHub household!\n\nInvite code: *${household?.inviteCode}*\n\nJoin directly: ${joinLink}`;
+          window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`,"_blank");
+        }},
               {label:"Email",icon:"✉️",bg:"#EA4335",action:()=>window.open(`mailto:?subject=Join HomeHub&body=${encodeURIComponent(shareMsg)}`,"_self")},
               {label:"SMS",icon:"💬",bg:"#1d4ed8",action:()=>window.open(`sms:?body=${encodeURIComponent(shareMsg)}`,"_self")},
               {label:"Copy Link",icon:"🔗",bg:"rgba(255,107,43,0.1)",textColor:"#ff6b2b",border:"1.5px solid rgba(255,107,43,0.25)",action:()=>{navigator.clipboard.writeText(joinLink);toast("Link copied!","success");}},

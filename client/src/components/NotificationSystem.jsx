@@ -5,6 +5,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import API from "../api/axios";
+export { NotificationSystem as NotificationBell };
 
 const NOTIF_KEY = "homehub_notifications";
 
@@ -45,6 +46,7 @@ function fmt(ts) {
   if (diff < 86400000) return `${Math.floor(diff/3600000)}h ago`;
   return d.toLocaleDateString("en-IN",{day:"numeric",month:"short"});
 }
+
 
 export default function NotificationSystem() {
   const navigate = useNavigate();
@@ -135,7 +137,7 @@ export default function NotificationSystem() {
         }
 
         // Check purchases for unsettled
-        const purchRes = await API.get(`/purchase/${hhId}`).catch(() => ({ data:[] }));
+        const purchRes = await API.get(`/purchase/household/${hhId}`).catch(() => ({ data:[] }));
         const unsettled = (purchRes.data||[]).filter(p => !p.settled);
         if (unsettled.length > 0) {
           const amt = unsettled.reduce((s,p)=>s+(p.totalAmount||p.amount||0),0);

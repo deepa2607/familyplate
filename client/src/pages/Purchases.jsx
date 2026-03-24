@@ -54,7 +54,7 @@ export default function Purchases() {
         setHousehold(hhRes.data);
         const [mRes, pRes] = await Promise.all([
           API.get(`/household/members/${hhRes.data._id}`).catch(() => ({ data: hhRes.data.members||[] })),
-          API.get(`/purchase/${hhRes.data._id}`).catch(() => ({ data:[] })),
+          API.get(`/purchase/household/${hhRes.data._id}`).catch(() => ({ data:[] })),
         ]);
         setMembers((mRes.data||[]).map((m,i) => typeof m==="string"?{_id:m,name:m}:m));
         setPurchases(pRes.data||[]);
